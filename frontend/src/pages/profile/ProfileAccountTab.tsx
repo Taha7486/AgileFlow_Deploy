@@ -26,7 +26,6 @@ import { useAuthStore } from '../../store/authStore';
 const roleChip = (role: string) => {
   const map: Record<string, { label: string; color: 'error' | 'warning' | 'info' }> = {
     ROLE_ADMIN: { label: 'Administrateur', color: 'error' },
-    ROLE_MANAGER: { label: 'Manager', color: 'warning' },
     ROLE_DEVELOPER: { label: 'Developpeur', color: 'info' },
   };
   const cfg = map[role] ?? { label: role, color: 'info' as const };

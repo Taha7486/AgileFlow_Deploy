@@ -4,24 +4,17 @@ import {
   Box,
   Button,
   CircularProgress,
-  FormControl,
   Grid,
-  InputLabel,
-  MenuItem,
   Paper,
-  Select,
   Snackbar,
   Stack,
   Typography,
 } from '@mui/material';
 import { Assessment, Refresh } from '@mui/icons-material';
-import { fetchProjects } from '../../api/projectsApi';
-import { fetchSprintsByProject, type SprintItem } from '../../api/sprintsApi';
+import { useActiveProject } from '../../hooks/useActiveProject';
 import { exportStatsCsv, exportStatsPdf, fetchStats, type StatsParams } from '../../api/statsApi';
-import BurndownChart from '../../components/stats/BurndownChart';
 import ExportButtons from '../../components/stats/ExportButtons';
-import VelocityChart from '../../components/stats/VelocityChart';
-import type { ProjectListItem, StatsData } from '../../types';
+import type { StatsData } from '../../types';
 
 const saveBlob = (blob: Blob, filename: string) => {
   const url = window.URL.createObjectURL(blob);
@@ -35,10 +28,7 @@ const saveBlob = (blob: Blob, filename: string) => {
 };
 
 const StatsPage = () => {
-  const [projects, setProjects] = useState<ProjectListItem[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<number | ''>('');
-  const [sprints, setSprints] = useState<SprintItem[]>([]);
-  const [selectedSprintId, setSelectedSprintId] = useState<number | ''>('');
+  const { activeProject } = useActiveProject();
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -46,34 +36,8 @@ const StatsPage = () => {
   const [snack, setSnack] = useState<string | null>(null);
 
   const params: StatsParams = useMemo(() => ({
-    ...(selectedProjectId ? { projectId: selectedProjectId } : {}),
-    ...(selectedSprintId ? { sprintId: selectedSprintId } : {}),
-  }), [selectedProjectId, selectedSprintId]);
-
-  const loadProjects = useCallback(async () => {
-    try {
-      const data = await fetchProjects();
-      setProjects(data);
-    } catch {
-      setProjects([]);
-    }
-  }, []);
-
-  const loadSprints = useCallback(async () => {
-    if (!selectedProjectId) {
-      setSprints([]);
-      setSelectedSprintId('');
-      return;
-    }
-    try {
-      const data = await fetchSprintsByProject(selectedProjectId);
-      setSprints(data);
-      setSelectedSprintId((current) => (current && data.some((sprint) => sprint.id === current) ? current : ''));
-    } catch {
-      setSprints([]);
-      setSelectedSprintId('');
-    }
-  }, [selectedProjectId]);
+    ...(activeProject?.id ? { projectId: activeProject.id } : {}),
+  }), [activeProject?.id]);
 
   const loadStats = useCallback(async () => {
     setLoading(true);
@@ -88,14 +52,6 @@ const StatsPage = () => {
       setLoading(false);
     }
   }, [params]);
-
-  useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
-
-  useEffect(() => {
-    loadSprints();
-  }, [loadSprints]);
 
   useEffect(() => {
     loadStats();
@@ -143,7 +99,7 @@ const StatsPage = () => {
             <Typography variant="h5" fontWeight={800}>Stats & Rapports</Typography>
           </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Burndown, velocity et exports PDF/CSV.
+            Avancement des taches et exports PDF/CSV{activeProject ? ` pour ${activeProject.name}.` : '.'}
           </Typography>
         </Box>
         <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
@@ -152,41 +108,8 @@ const StatsPage = () => {
         </Stack>
       </Stack>
 
-      <Paper elevation={0} sx={{ p: 2.5, mb: 3, borderRadius: 2, border: '1px solid', borderColor: 'grey.200' }}>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-          <FormControl size="small" sx={{ minWidth: 260 }}>
-            <InputLabel id="stats-project-label">Projet</InputLabel>
-            <Select
-              labelId="stats-project-label"
-              label="Projet"
-              value={selectedProjectId}
-              onChange={(event) => setSelectedProjectId(event.target.value as number | '')}
-            >
-              <MenuItem value="">Tous les projets</MenuItem>
-              {projects.map((project) => (
-                <MenuItem key={project.id} value={project.id}>{project.name}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 240 }}>
-            <InputLabel id="stats-sprint-label">Sprint</InputLabel>
-            <Select
-              labelId="stats-sprint-label"
-              label="Sprint"
-              value={selectedSprintId}
-              disabled={!selectedProjectId || sprints.length === 0}
-              onChange={(event) => setSelectedSprintId(event.target.value as number | '')}
-            >
-              <MenuItem value="">Tous les sprints</MenuItem>
-              {sprints.map((sprint) => (
-                <MenuItem key={sprint.id} value={sprint.id}>{sprint.nom}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Stack>
-      </Paper>
-
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+      {!activeProject && <Alert severity="info" sx={{ mb: 3 }}>Selectionnez un projet dans le header pour afficher ses statistiques.</Alert>}
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
@@ -222,22 +145,7 @@ const StatsPage = () => {
                 <Typography variant="h6" fontWeight={800}>{stats.reviewTasks}</Typography>
               </Paper>
             </Grid>
-            <Grid item xs={12} sm={6} lg={3}>
-              <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid', borderColor: 'grey.200' }}>
-                <Typography variant="body2" color="text.secondary">Sprints actifs</Typography>
-                <Typography variant="h6" fontWeight={800}>{stats.activeSprints}</Typography>
-              </Paper>
-            </Grid>
           </Grid>
-
-          <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid', borderColor: 'grey.200' }}>
-            <Typography variant="body2" color="text.secondary">
-              Periode du burndown: {stats.startDate} - {stats.endDate}
-            </Typography>
-          </Paper>
-
-          <BurndownChart points={stats.burndown} />
-          <VelocityChart points={stats.velocity} />
         </Stack>
       ) : (
         <Alert severity="info">Aucune statistique disponible.</Alert>

@@ -35,6 +35,11 @@ public class ProjectInvitation {
     @Column(nullable = false, unique = true, length = 64)
     private String token;
 
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private ProjectMember.ProjectRole role = ProjectMember.ProjectRole.DEVELOPER;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private InvitationStatus status;
@@ -49,6 +54,16 @@ public class ProjectInvitation {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "accepted_user_id")
     private User acceptedUser;
+
+    @PrePersist
+    public void prePersist() {
+        if (role == null) {
+            role = ProjectMember.ProjectRole.DEVELOPER;
+        }
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+    }
 
     public enum InvitationStatus {
         PENDING, ACCEPTED, REJECTED, CANCELLED

@@ -29,9 +29,9 @@ describe('NotificationPreferences', () => {
       mentionEnabled: true,
     });
     fetchEmailPreview.mockResolvedValue({
-      type: 'SPRINT_START',
-      subject: 'Sprint demarre: Sprint 5',
-      html: '<p>Preview sprint</p>',
+      type: 'TASK_ASSIGNED',
+      subject: 'Nouvelle tache assignee',
+      html: '<p>Preview tache</p>',
     });
     updateMyEmailPreferences.mockResolvedValue({
       userId: 1,
@@ -58,6 +58,6 @@ describe('NotificationPreferences', () => {
     });
 
     expect(screen.getByTestId('email-preview-card')).toBeInTheDocument();
-    expect(screen.getByText('Sprint demarre: Sprint 5')).toBeInTheDocument();
+    expect(screen.getByText('Nouvelle tache assignee')).toBeInTheDocument();
   });
 });

@@ -6,6 +6,7 @@ public record ProjectMemberDTO(
         String firstName,
         String lastName,
         String role,
+        String projectRole,
         boolean owner,
         String joinedAt
 ) {}

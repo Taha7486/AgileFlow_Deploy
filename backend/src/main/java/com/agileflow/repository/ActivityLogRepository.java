@@ -19,6 +19,23 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> 
             SELECT log FROM ActivityLog log
             JOIN FETCH log.actor actor
             LEFT JOIN FETCH log.project project
+            LEFT JOIN FETCH log.task task
+            WHERE project.id = :projectId
+            ORDER BY log.createdAt DESC
+            """,
+            countQuery = """
+            SELECT COUNT(log.id) FROM ActivityLog log
+            LEFT JOIN log.project project
+            WHERE project.id = :projectId
+            """
+    )
+    Page<ActivityLog> findByProjectIdOrderByCreatedAtDesc(@Param("projectId") Long projectId, Pageable pageable);
+
+    @Query(
+            value = """
+            SELECT log FROM ActivityLog log
+            JOIN FETCH log.actor actor
+            LEFT JOIN FETCH log.project project
             LEFT JOIN FETCH log.sprint sprint
             LEFT JOIN FETCH log.task task
             WHERE (:q IS NULL

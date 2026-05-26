@@ -37,8 +37,7 @@ public class TeamService {
     }
 
     private boolean canManageTeam(User actor, Team team) {
-        return isAdmin(actor)
-                || (actor.getRole() == User.Role.ROLE_MANAGER && team.getManager().getId().equals(actor.getId()));
+        return isAdmin(actor) || team.getManager().getId().equals(actor.getId());
     }
 
     @Transactional(readOnly = true)
@@ -96,12 +95,12 @@ public class TeamService {
     @Transactional
     public TeamDTO createTeam(CreateTeamRequest request) {
         User actor = currentUser();
-        if (!isAdmin(actor) && actor.getRole() != User.Role.ROLE_MANAGER) {
+        if (!isAdmin(actor)) {
             throw new ForbiddenOperationException("Seuls les administrateurs et managers peuvent créer une équipe.");
         }
         User manager = userRepository.findById(request.managerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Manager introuvable"));
-        if (manager.getRole() != User.Role.ROLE_ADMIN && manager.getRole() != User.Role.ROLE_MANAGER) {
+        if (manager.getRole() != User.Role.ROLE_ADMIN && manager.getRole() != User.Role.ROLE_DEVELOPER) {
             throw new BadRequestException("Le manager doit avoir le rôle ADMIN ou MANAGER.");
         }
         Team team = Team.builder()

@@ -43,11 +43,11 @@ public class DashboardService {
                 ? userRepository.findAll().stream().filter(User::isActif).count()
                 : 0;
         long totalTeams = actor.getRole() == User.Role.ROLE_ADMIN ? teamRepository.count() : teamMemberRepository.findByUser_Id(actor.getId()).size();
-        long managedTeams = (actor.getRole() == User.Role.ROLE_ADMIN || actor.getRole() == User.Role.ROLE_MANAGER)
+        long managedTeams = actor.getRole() == User.Role.ROLE_ADMIN
                 ? teamRepository.countByManager_Id(actor.getId())
                 : 0;
         long totalProjects = actor.getRole() == User.Role.ROLE_ADMIN ? projectRepository.count() : projectRepository.findByManagerId(actor.getId()).size();
-        long managedProjects = (actor.getRole() == User.Role.ROLE_ADMIN || actor.getRole() == User.Role.ROLE_MANAGER)
+        long managedProjects = actor.getRole() == User.Role.ROLE_ADMIN
                 ? projectRepository.countByManager_Id(actor.getId())
                 : 0;
         long activeProjects = actor.getRole() == User.Role.ROLE_ADMIN
@@ -56,26 +56,18 @@ public class DashboardService {
         long activeSprints = actor.getRole() == User.Role.ROLE_ADMIN
                 ? sprintRepository.countByStatut(Sprint.Statut.ACTIF)
                 : sprintRepository.countByProject_Manager_IdAndStatut(actor.getId(), Sprint.Statut.ACTIF);
-        long totalTasks = actor.getRole() == User.Role.ROLE_DEVELOPER
+        long totalTasks = actor.getRole() != User.Role.ROLE_ADMIN
                 ? taskRepository.countByAssignedTo_Id(actor.getId())
-                : actor.getRole() == User.Role.ROLE_ADMIN
-                    ? taskRepository.count()
-                    : taskRepository.countBySprint_Project_Manager_Id(actor.getId());
-        long todoTasks = actor.getRole() == User.Role.ROLE_DEVELOPER
+                : taskRepository.count();
+        long todoTasks = actor.getRole() != User.Role.ROLE_ADMIN
                 ? taskRepository.countByAssignedTo_IdAndStatut(actor.getId(), Task.Statut.TODO)
-                : actor.getRole() == User.Role.ROLE_ADMIN
-                    ? taskRepository.countByStatut(Task.Statut.TODO)
-                    : taskRepository.countBySprint_Project_Manager_IdAndStatut(actor.getId(), Task.Statut.TODO);
-        long inProgressTasks = actor.getRole() == User.Role.ROLE_DEVELOPER
+                : taskRepository.countByStatut(Task.Statut.TODO);
+        long inProgressTasks = actor.getRole() != User.Role.ROLE_ADMIN
                 ? taskRepository.countByAssignedTo_IdAndStatut(actor.getId(), Task.Statut.IN_PROGRESS)
-                : actor.getRole() == User.Role.ROLE_ADMIN
-                    ? taskRepository.countByStatut(Task.Statut.IN_PROGRESS)
-                    : taskRepository.countBySprint_Project_Manager_IdAndStatut(actor.getId(), Task.Statut.IN_PROGRESS);
-        long doneTasks = actor.getRole() == User.Role.ROLE_DEVELOPER
+                : taskRepository.countByStatut(Task.Statut.IN_PROGRESS);
+        long doneTasks = actor.getRole() != User.Role.ROLE_ADMIN
                 ? taskRepository.countByAssignedTo_IdAndStatut(actor.getId(), Task.Statut.DONE)
-                : actor.getRole() == User.Role.ROLE_ADMIN
-                    ? taskRepository.countByStatut(Task.Statut.DONE)
-                    : taskRepository.countBySprint_Project_Manager_IdAndStatut(actor.getId(), Task.Statut.DONE);
+                : taskRepository.countByStatut(Task.Statut.DONE);
 
         return new DashboardStatsDTO(
                 actor.getRole().name(),

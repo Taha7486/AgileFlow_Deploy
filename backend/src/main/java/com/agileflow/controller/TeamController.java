@@ -37,34 +37,34 @@ public class TeamController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_MANAGER')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<TeamDTO> createTeam(@Valid @RequestBody CreateTeamRequest request) {
         TeamDTO created = teamService.createTeam(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_MANAGER')")
+    @PreAuthorize("isAuthenticated()")
     public TeamDTO updateTeam(@PathVariable Long id, @Valid @RequestBody UpdateTeamRequest request) {
         return teamService.updateTeam(id, request);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_MANAGER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> deleteTeam(@PathVariable Long id) {
         teamService.deleteTeam(id);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{teamId}/members/{userId}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_MANAGER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> addMember(@PathVariable Long teamId, @PathVariable Long userId) {
         teamService.addMember(teamId, userId);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @DeleteMapping("/{teamId}/members/{userId}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_MANAGER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> removeMember(@PathVariable Long teamId, @PathVariable Long userId) {
         teamService.removeMember(teamId, userId);
         return ResponseEntity.noContent().build();

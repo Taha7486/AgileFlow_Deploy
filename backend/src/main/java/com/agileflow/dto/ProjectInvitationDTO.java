@@ -13,6 +13,7 @@ public record ProjectInvitationDTO(
         String inviterLastName,
         String invitedEmail,
         Long invitedUserId,
+        String role,
         ProjectInvitation.InvitationStatus status,
         LocalDateTime createdAt,
         LocalDateTime expiresAt,

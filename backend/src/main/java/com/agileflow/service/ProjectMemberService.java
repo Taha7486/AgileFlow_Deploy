@@ -30,6 +30,7 @@ public class ProjectMemberService {
     private final ProjectAccessService projectAccessService;
     private final ProjectInvitationEmailService projectInvitationEmailService;
     private final NotificationService notificationService;
+    private final TaskRepository taskRepository;
 
     @Transactional(readOnly = true)
     public List<ProjectMemberDTO> listMembers(Long projectId) {
@@ -43,7 +44,7 @@ public class ProjectMemberService {
             members.add(toMemberDto(owner, true, project.getDateDebut() != null ? project.getDateDebut().atStartOfDay() : LocalDateTime.now()));
         }
         projectMemberRepository.findByProject_IdOrderByJoinedAtAsc(projectId).stream()
-                .map(pm -> toMemberDto(pm.getUser(), false, pm.getJoinedAt()))
+                .map(pm -> toMemberDto(pm.getUser(), false, pm.getJoinedAt(), pm.getRole()))
                 .forEach(members::add);
         return members;
     }
@@ -56,6 +57,22 @@ public class ProjectMemberService {
         return projectInvitationRepository.findPendingByProjectId(projectId).stream()
                 .map(this::toInvitationDto)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ProjectMemberStatsDTO stats(Long projectId) {
+        Project project = projectAccessService.getProjectOrThrow(projectId);
+        User actor = projectAccessService.currentUser();
+        projectAccessService.assertProjectAccess(actor, project);
+
+        List<Task> tasks = taskRepository.findByAnyProjectId(projectId);
+        long total = tasks.size();
+        long done = tasks.stream().filter(task -> task.getStatut() == Task.Statut.DONE).count();
+        long assigned = tasks.stream().filter(task -> task.getAssignedTo() != null).count();
+        long pending = projectInvitationRepository.findPendingByProjectId(projectId).size();
+        long active = listMembers(projectId).size();
+        int completionRate = total == 0 ? 0 : (int) Math.round((done * 100.0) / total);
+        return new ProjectMemberStatsDTO(active, pending, assigned, completionRate);
     }
 
     @Transactional(readOnly = true)
@@ -72,11 +89,13 @@ public class ProjectMemberService {
         User actor = projectAccessService.currentUser();
         projectAccessService.assertCanManageProject(actor, project);
 
+        ProjectMember.ProjectRole role = parseRole(request.role());
+
         if (request.userId() != null) {
-            return inviteContact(project, actor, request.userId());
+            return inviteContact(project, actor, request.userId(), role);
         }
         if (request.email() != null && !request.email().isBlank()) {
-            return inviteByEmail(project, actor, request.email().trim().toLowerCase());
+            return inviteByEmail(project, actor, request.email().trim().toLowerCase(), role);
         }
         throw new BadRequestException("Indiquez un contact ou une adresse email.");
     }
@@ -94,6 +113,40 @@ public class ProjectMemberService {
             throw new ResourceNotFoundException("Membre introuvable sur ce projet.");
         }
         projectMemberRepository.deleteByProject_IdAndUser_Id(projectId, userId);
+    }
+
+    @Transactional
+    public ProjectMemberDTO updateRole(Long projectId, Long userId, UpdateProjectMemberRoleRequest request) {
+        Project project = projectAccessService.getProjectOrThrow(projectId);
+        User actor = projectAccessService.currentUser();
+        projectAccessService.assertCanManageProject(actor, project);
+
+        if (project.getManager() != null && project.getManager().getId().equals(userId)) {
+            throw new BadRequestException("Le role du proprietaire ne peut pas etre modifie.");
+        }
+
+        ProjectMember member = projectMemberRepository.findByProject_IdAndUser_Id(projectId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Membre introuvable sur ce projet."));
+        member.setRole(parseRole(request != null ? request.role() : null));
+        ProjectMember saved = projectMemberRepository.save(member);
+        return toMemberDto(saved.getUser(), false, saved.getJoinedAt(), saved.getRole());
+    }
+
+    @Transactional
+    public void resendInvitation(Long projectId, Long invitationId) {
+        Project project = projectAccessService.getProjectOrThrow(projectId);
+        User actor = projectAccessService.currentUser();
+        projectAccessService.assertCanManageProject(actor, project);
+
+        ProjectInvitation invitation = projectInvitationRepository.findById(invitationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Invitation introuvable"));
+        if (!invitation.getProject().getId().equals(projectId)) {
+            throw new ForbiddenOperationException("Cette invitation n'appartient pas au projet.");
+        }
+        assertInvitationPending(invitation);
+        invitation.setExpiresAt(LocalDateTime.now().plusDays(INVITATION_VALIDITY_DAYS));
+        ProjectInvitation saved = projectInvitationRepository.save(invitation);
+        projectInvitationEmailService.sendProjectInvitation(saved.getEmail(), actor, project, saved.getToken());
     }
 
     @Transactional(readOnly = true)
@@ -136,7 +189,7 @@ public class ProjectMemberService {
         rejectInvitation(new AcceptProjectInvitationRequest(null, invitationId));
     }
 
-    private InviteProjectMemberResultDTO inviteContact(Project project, User actor, Long userId) {
+    private InviteProjectMemberResultDTO inviteContact(Project project, User actor, Long userId, ProjectMember.ProjectRole role) {
         if (project.getManager() != null && project.getManager().getId().equals(userId)) {
             throw new ConflictException("Cet utilisateur est deja proprietaire du projet.");
         }
@@ -150,10 +203,10 @@ public class ProjectMemberService {
                     "Vous devez etre en contact avec cet utilisateur. Sinon, invitez-le par email."
             );
         }
-        return createPendingInvitation(project, actor, invitee, false);
+        return createPendingInvitation(project, actor, invitee, false, role);
     }
 
-    private InviteProjectMemberResultDTO inviteByEmail(Project project, User actor, String email) {
+    private InviteProjectMemberResultDTO inviteByEmail(Project project, User actor, String email, ProjectMember.ProjectRole role) {
         if (project.getManager() != null && project.getManager().getEmail().equalsIgnoreCase(email)) {
             throw new ConflictException("Cette personne est deja proprietaire du projet.");
         }
@@ -163,7 +216,7 @@ public class ProjectMemberService {
             if (projectMemberRepository.existsByProject_IdAndUser_Id(project.getId(), existing.getId())) {
                 throw new ConflictException("Cet utilisateur est deja membre du projet.");
             }
-            return createPendingInvitation(project, actor, existing, true);
+            return createPendingInvitation(project, actor, existing, true, role);
         }
 
         if (projectInvitationRepository.existsByProject_IdAndEmailIgnoreCaseAndStatus(
@@ -171,13 +224,13 @@ public class ProjectMemberService {
             throw new ConflictException("Une invitation est deja en attente pour cet email.");
         }
 
-        return createPendingInvitation(project, actor, email, true);
+        return createPendingInvitation(project, actor, email, true, role);
     }
 
-    private InviteProjectMemberResultDTO createPendingInvitation(Project project, User actor, User invitee, boolean sendEmail) {
+    private InviteProjectMemberResultDTO createPendingInvitation(Project project, User actor, User invitee, boolean sendEmail, ProjectMember.ProjectRole role) {
         validateNoPendingInvitation(project, invitee.getEmail(), invitee.getId());
 
-        ProjectInvitation invitation = saveInvitation(project, actor, invitee.getEmail(), invitee, sendEmail);
+        ProjectInvitation invitation = saveInvitation(project, actor, invitee.getEmail(), invitee, sendEmail, role);
         notifyInvitationReceived(invitee, actor, project, invitation, sendEmail);
 
         String message = sendEmail
@@ -187,10 +240,10 @@ public class ProjectMemberService {
         return new InviteProjectMemberResultDTO("INVITATION_SENT", message, null);
     }
 
-    private InviteProjectMemberResultDTO createPendingInvitation(Project project, User actor, String email, boolean sendEmail) {
+    private InviteProjectMemberResultDTO createPendingInvitation(Project project, User actor, String email, boolean sendEmail, ProjectMember.ProjectRole role) {
         validateNoPendingInvitation(project, email, null);
 
-        ProjectInvitation invitation = saveInvitation(project, actor, email, null, sendEmail);
+        ProjectInvitation invitation = saveInvitation(project, actor, email, null, sendEmail, role);
         userRepository.findByEmail(email).ifPresent(user -> notifyInvitationReceived(user, actor, project, invitation, sendEmail));
 
         return new InviteProjectMemberResultDTO(
@@ -200,7 +253,7 @@ public class ProjectMemberService {
         );
     }
 
-    private ProjectInvitation saveInvitation(Project project, User actor, String email, User invitedUser, boolean sendEmail) {
+    private ProjectInvitation saveInvitation(Project project, User actor, String email, User invitedUser, boolean sendEmail, ProjectMember.ProjectRole role) {
         String token = UUID.randomUUID().toString().replace("-", "");
         ProjectInvitation invitation = ProjectInvitation.builder()
                 .project(project)
@@ -208,6 +261,7 @@ public class ProjectMemberService {
                 .email(email)
                 .invitedUser(invitedUser)
                 .token(token)
+                .role(role)
                 .status(ProjectInvitation.InvitationStatus.PENDING)
                 .expiresAt(LocalDateTime.now().plusDays(INVITATION_VALIDITY_DAYS))
                 .build();
@@ -256,7 +310,7 @@ public class ProjectMemberService {
         }
 
         Project project = invitation.getProject();
-        addMemberIfNeeded(project, actor);
+        addMemberIfNeeded(project, actor, invitation.getRole());
         invitation.setStatus(ProjectInvitation.InvitationStatus.ACCEPTED);
         invitation.setAcceptedUser(actor);
         projectInvitationRepository.save(invitation);
@@ -288,7 +342,7 @@ public class ProjectMemberService {
         }
     }
 
-    private void addMemberIfNeeded(Project project, User user) {
+    private void addMemberIfNeeded(Project project, User user, ProjectMember.ProjectRole role) {
         if (project.getManager() != null && project.getManager().getId().equals(user.getId())) {
             return;
         }
@@ -298,6 +352,7 @@ public class ProjectMemberService {
         projectMemberRepository.save(ProjectMember.builder()
                 .project(project)
                 .user(user)
+                .role(role != null ? role : ProjectMember.ProjectRole.DEVELOPER)
                 .joinedAt(LocalDateTime.now())
                 .build());
     }
@@ -313,6 +368,7 @@ public class ProjectMemberService {
                 inviter.getNom(),
                 invitation.getEmail(),
                 invitation.getInvitedUser() != null ? invitation.getInvitedUser().getId() : null,
+                invitation.getRole() != null ? invitation.getRole().name() : ProjectMember.ProjectRole.DEVELOPER.name(),
                 invitation.getStatus(),
                 invitation.getCreatedAt(),
                 invitation.getExpiresAt(),
@@ -321,14 +377,34 @@ public class ProjectMemberService {
     }
 
     private ProjectMemberDTO toMemberDto(User user, boolean owner, LocalDateTime joinedAt) {
+        return toMemberDto(user, owner, joinedAt, ProjectMember.ProjectRole.DEVELOPER);
+    }
+
+    private ProjectMemberDTO toMemberDto(User user, boolean owner, LocalDateTime joinedAt, ProjectMember.ProjectRole projectRole) {
         return new ProjectMemberDTO(
                 user.getId(),
                 user.getEmail(),
                 user.getPrenom(),
                 user.getNom(),
                 user.getRole().name(),
+                owner ? "OWNER" : (projectRole != null ? projectRole.name() : ProjectMember.ProjectRole.DEVELOPER.name()),
                 owner,
                 joinedAt != null ? joinedAt.toString() : null
         );
+    }
+
+    private ProjectMember.ProjectRole parseRole(String role) {
+        if (role == null || role.isBlank()) {
+            return ProjectMember.ProjectRole.DEVELOPER;
+        }
+        String normalized = role.trim().toUpperCase();
+        if ("OWNER".equals(normalized)) {
+            throw new BadRequestException("Le role OWNER est reserve au proprietaire du projet.");
+        }
+        try {
+            return ProjectMember.ProjectRole.valueOf(normalized);
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException("Role projet invalide: " + role);
+        }
     }
 }

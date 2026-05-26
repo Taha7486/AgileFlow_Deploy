@@ -51,8 +51,7 @@ public class CommentService {
         return project != null && (
                 isAdmin(actor)
                         || actor.getRole() == User.Role.ROLE_DEVELOPER
-                        || (actor.getRole() == User.Role.ROLE_MANAGER
-                        && project.getManager() != null
+                        || (project.getManager() != null
                         && project.getManager().getId().equals(actor.getId()))
         );
     }

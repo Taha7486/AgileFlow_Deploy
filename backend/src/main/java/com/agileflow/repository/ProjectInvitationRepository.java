@@ -6,11 +6,25 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 public interface ProjectInvitationRepository extends JpaRepository<ProjectInvitation, Long> {
 
     Optional<ProjectInvitation> findByToken(String token);
+
+    Optional<ProjectInvitation> findByTokenAndStatusAndExpiresAtAfter(
+            String token,
+            ProjectInvitation.InvitationStatus status,
+            LocalDateTime now
+    );
+
+    boolean existsByProject_IdAndEmailIgnoreCaseAndStatusAndExpiresAtAfter(
+            Long projectId,
+            String email,
+            ProjectInvitation.InvitationStatus status,
+            LocalDateTime now
+    );
 
     @Query("""
             SELECT i FROM ProjectInvitation i

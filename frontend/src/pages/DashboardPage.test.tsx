@@ -15,8 +15,8 @@ vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({
     user: {
       id: 1,
-      email: 'manager@agileflow.dev',
-      role: 'ROLE_MANAGER',
+      email: 'owner@agileflow.dev',
+      role: 'ROLE_DEVELOPER',
       firstName: 'Sara',
       lastName: 'Manager',
     },
@@ -25,7 +25,7 @@ vi.mock('../context/AuthContext', () => ({
 
 vi.mock('../api/dashboardApi', () => ({
   fetchDashboardStats: vi.fn().mockResolvedValue({
-    role: 'ROLE_MANAGER',
+    role: 'ROLE_DEVELOPER',
     totalUsers: 0,
     activeUsers: 0,
     totalTeams: 1,

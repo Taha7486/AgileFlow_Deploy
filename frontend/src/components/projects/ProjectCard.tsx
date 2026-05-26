@@ -37,7 +37,6 @@ const ProjectCard = ({ project, actions }: Props) => (
         <Chip size="small" variant="outlined" color={project.owner ? 'primary' : 'default'} label={`Proprietaire: ${project.managerName || 'Non defini'}`} />
         <Chip size="small" variant="outlined" label={`Membres: ${project.memberCount}`} />
         <Chip size="small" variant="outlined" label={`Equipe: ${project.teamName || 'Non definie'}`} />
-        <Chip size="small" variant="outlined" label={`Sprints: ${project.sprintCount}`} />
         <Chip size="small" variant="outlined" label={`Taches: ${project.taskCount}`} />
       </Stack>
 

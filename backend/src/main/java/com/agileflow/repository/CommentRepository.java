@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface CommentRepository extends JpaRepository<Comment, Long> {
     List<Comment> findByTask_IdOrderByCreatedAtAsc(Long taskId);
+    int countByTask_Id(Long taskId);
 }

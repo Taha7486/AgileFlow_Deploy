@@ -68,11 +68,11 @@ public class DataInitializer implements CommandLineRunner {
                 .build();
 
         User manager = User.builder()
-                .nom("Manager")
+                .nom("Owner")
                 .prenom("Project")
-                .email("manager@agileflow.com")
+                .email("owner@agileflow.com")
                 .password(passwordEncoder.encode("Password@2024"))
-                .role(User.Role.ROLE_MANAGER)
+                .role(User.Role.ROLE_DEVELOPER)
                 .actif(true)
                 .dateCreation(LocalDateTime.now())
                 .build();

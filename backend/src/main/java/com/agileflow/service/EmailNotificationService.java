@@ -94,6 +94,23 @@ public class EmailNotificationService {
         sendToUserIfEnabled(task.getAssignedTo(), EmailNotificationType.DEADLINE, email);
     }
 
+    public void sendDirectEmail(String recipientEmail, EmailTemplateService.RenderedEmail email) {
+        if (recipientEmail == null || recipientEmail.isBlank()) {
+            return;
+        }
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "UTF-8");
+            helper.setFrom(fromName + " <" + fromEmail + ">");
+            helper.setTo(recipientEmail);
+            helper.setSubject(email.subject());
+            helper.setText(email.html(), true);
+            mailSender.send(mimeMessage);
+        } catch (Exception ex) {
+            log.warn("Email direct non envoye a {}: {}", recipientEmail, ex.getMessage());
+        }
+    }
+
     private void sendToUserIfEnabled(User user, EmailNotificationType type, EmailTemplateService.RenderedEmail email) {
         if (user == null || user.getEmail() == null || user.getEmail().isBlank()) {
             return;

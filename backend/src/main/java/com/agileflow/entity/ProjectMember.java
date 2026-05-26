@@ -29,6 +29,25 @@ public class ProjectMember {
     private User user;
 
     @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private ProjectRole role = ProjectRole.DEVELOPER;
+
+    @Builder.Default
     @Column(name = "joined_at", nullable = false)
     private LocalDateTime joinedAt = LocalDateTime.now();
+
+    @PrePersist
+    public void prePersist() {
+        if (role == null) {
+            role = ProjectRole.DEVELOPER;
+        }
+        if (joinedAt == null) {
+            joinedAt = LocalDateTime.now();
+        }
+    }
+
+    public enum ProjectRole {
+        ADMIN, DEVELOPER, VIEWER
+    }
 }

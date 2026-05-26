@@ -26,16 +26,15 @@ import { fr } from 'date-fns/locale';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../hooks/useNotifications';
 import { sendAnnouncement, type AnnouncementTargetType } from '../../api/adminApi';
-import { fetchProjects } from '../../api/projectsApi';
 import { fetchUsers } from '../../api/usersApi';
-import type { ProjectListItem, UserListItem } from '../../types';
+import { useActiveProject } from '../../hooks/useActiveProject';
+import type { UserListItem } from '../../types';
 
 const AdminAnnouncements = () => {
+  const { activeProject } = useActiveProject();
   const [targetType, setTargetType] = useState<AnnouncementTargetType>('ALL_USERS');
-  const [projectId, setProjectId] = useState<number | ''>('');
   const [userId, setUserId] = useState<number | ''>('');
   const [message, setMessage] = useState('');
-  const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [users, setUsers] = useState<UserListItem[]>([]);
   const [sending, setSending] = useState(false);
   const [snack, setSnack] = useState<string | null>(null);
@@ -44,8 +43,7 @@ const AdminAnnouncements = () => {
   useEffect(() => {
     const loadLookups = async () => {
       try {
-        const [projectRows, userRows] = await Promise.all([fetchProjects(), fetchUsers()]);
-        setProjects(projectRows);
+        const userRows = await fetchUsers();
         setUsers(userRows.filter((user) => user.active !== false));
       } catch {
         setError('Impossible de charger les destinataires.');
@@ -59,8 +57,8 @@ const AdminAnnouncements = () => {
       setError('Le message est obligatoire.');
       return;
     }
-    if (targetType === 'PROJECT_MEMBERS' && !projectId) {
-      setError('Selectionnez un projet.');
+    if (targetType === 'PROJECT_MEMBERS' && !activeProject?.id) {
+      setError('Selectionnez un projet dans le header.');
       return;
     }
     if (targetType === 'SPECIFIC_USER' && !userId) {
@@ -73,7 +71,7 @@ const AdminAnnouncements = () => {
     try {
       const result = await sendAnnouncement({
         targetType,
-        projectId: targetType === 'PROJECT_MEMBERS' ? Number(projectId) : null,
+        projectId: targetType === 'PROJECT_MEMBERS' ? Number(activeProject?.id) : null,
         userId: targetType === 'SPECIFIC_USER' ? Number(userId) : null,
         message: message.trim(),
       });
@@ -108,7 +106,6 @@ const AdminAnnouncements = () => {
                 value={targetType}
                 onChange={(event) => {
                   setTargetType(event.target.value as AnnouncementTargetType);
-                  setProjectId('');
                   setUserId('');
                 }}
               >
@@ -119,16 +116,9 @@ const AdminAnnouncements = () => {
             </FormControl>
 
             {targetType === 'PROJECT_MEMBERS' && (
-              <Autocomplete
-                size="small"
-                options={projects}
-                value={projects.find((project) => project.id === projectId) ?? null}
-                getOptionLabel={(project) => project.name}
-                isOptionEqualToValue={(option, value) => option.id === value.id}
-                onChange={(_, project) => setProjectId(project?.id ?? '')}
-                sx={{ minWidth: 300 }}
-                renderInput={(params) => <TextField {...params} label="Projet" placeholder="Rechercher un projet" />}
-              />
+              <Alert severity={activeProject ? 'info' : 'warning'} sx={{ py: 0, alignItems: 'center' }}>
+                {activeProject ? `Projet cible : ${activeProject.name}` : 'Selectionnez un projet dans le header.'}
+              </Alert>
             )}
 
             {targetType === 'SPECIFIC_USER' && (

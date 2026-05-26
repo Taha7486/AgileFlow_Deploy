@@ -1,534 +1,591 @@
-# AgileFlow — Project Context
+# AgileFlow - Project Context
 
-> **Purpose of this file:** Give any AI assistant (or new developer) a complete, accurate picture of the project so no time is wasted on discovery.  
-> Last updated: 2026-05-23
+Last updated: 2026-05-26
 
----
+This file describes the current project state for developers and AI assistants.
+Keep it aligned with the codebase after each significant change.
 
-## 1. What Is AgileFlow?
+## 1. Overview
 
-AgileFlow is a **full-stack Agile project-management platform** — a Jira-like tool built as a university semester project (S2). It lets teams manage projects, sprints, tasks, user stories, diagrams, chat, and analytics in a real-time collaborative environment.
+AgileFlow is a full-stack Agile project management platform inspired by Jira.
 
-The project is written **entirely in French** (entity field names, comments, UI labels), though the code structure and API paths are in English.
+The current product scope includes:
 
----
+- project selector in the global header;
+- project CRUD from the header selector;
+- project invitations by email;
+- project roles and member management;
+- project summary dashboard;
+- planning list;
+- Kanban board;
+- Gantt timeline;
+- collaborative diagram editor;
+- chat, notifications and presence;
+- admin analytics/reports and activity logs.
 
-## 2. High-Level Architecture
+The UI is in French. JPA entity fields also use French names such as `nom`,
+`prenom`, `titre`, `statut`, `priorite`, `dateEcheance`.
 
-```
+## 2. Architecture
+
+```text
 AgileFlow/
-├── backend/          # Spring Boot 3.3.5 REST + WebSocket API
-├── frontend/         # React 18 + TypeScript SPA (Vite)
-├── docs/postman/     # Postman collection (API docs)
-├── README.md
-└── CONTEXT.md        ← you are here
+|-- backend/       Spring Boot 3.3.5 API
+|-- frontend/      React 18 TypeScript SPA
+|-- docs/
+|-- README.md
+`-- CONTEXT.md
 ```
 
-The two apps run independently and communicate over HTTP (REST) and WebSocket (STOMP over SockJS).
+Development URLs:
 
-| Layer      | URL (dev)               |
-|------------|-------------------------|
-| Backend    | http://localhost:8080   |
-| Frontend   | http://localhost:5173   |
-| Swagger UI | http://localhost:8080/swagger-ui/index.html |
-
----
+| Layer | URL |
+|---|---|
+| Backend | http://localhost:8080 |
+| Frontend | http://localhost:5173 |
+| API base | http://localhost:8080/api |
+| WebSocket | http://localhost:8080/ws |
 
 ## 3. Tech Stack
 
-### Backend
-| Technology | Version | Role |
-|---|---|---|
-| Java | 21 | Language |
-| Spring Boot | 3.3.5 | Framework |
-| Spring Security | (Boot-managed) | Auth & authorization |
-| Spring Data JPA | (Boot-managed) | ORM / persistence |
-| Spring WebSocket (STOMP) | (Boot-managed) | Real-time messaging |
-| Spring Mail | (Boot-managed) | Email notifications |
-| MySQL | 8.0+ | Primary database |
-| Flyway | 10.10.0 | DB migrations (disabled in dev — Hibernate `ddl-auto=update` used instead) |
-| JWT (jjwt) | 0.12.3 | Stateless authentication |
-| Lombok | 1.18.42 | Boilerplate reduction |
-| MapStruct | 1.5.5.Final | DTO/entity mapping |
-| iText PDF | 7.2.5 | PDF report generation |
-| SpringDoc OpenAPI | 2.3.0 | Swagger UI |
-| OAuth2 Client | (Boot-managed) | Google & GitHub social login |
-| H2 | (test scope) | In-memory DB for tests |
+Backend:
 
-### Frontend
-| Technology | Version | Role |
-|---|---|---|
-| React | 18.2 | UI framework |
-| TypeScript | 5.2 | Type safety |
-| Vite | 4.5 | Build tool / dev server |
-| React Router | v6.20 | Client-side routing |
-| Material-UI (MUI) | v5.15 | Component library |
-| Zustand | 4.4 | Global state management |
-| Axios | 1.6 | HTTP client |
-| @stomp/stompjs + sockjs-client | 7.0 / 1.6 | WebSocket (STOMP) |
-| ReactFlow | 11.11 | Diagram canvas editor |
-| Mermaid | 11.14 | Diagram rendering |
-| Recharts | 2.12 | Analytics charts |
-| dnd-kit | 6.3 / 10.0 | Drag-and-drop (Kanban) |
-| date-fns | 4.1 | Date utilities |
-| html-to-image | 1.11 | Diagram thumbnail capture |
-| Vitest + Testing Library | 2.1 / 16.0 | Unit testing |
+- Java 21
+- Spring Boot 3.3.5
+- Spring Security
+- JWT access/refresh tokens
+- OAuth2 Client for Google/GitHub
+- Spring Data JPA / Hibernate
+- MySQL 8
+- Spring Mail
+- WebSocket STOMP over SockJS
+- Maven
+- Lombok
+- iText PDF
 
----
+Frontend:
 
-## 4. Database
+- React 18
+- TypeScript
+- Vite
+- Material UI v5
+- Zustand
+- Axios
+- React Router v6
+- Recharts
+- dnd-kit
+- React Flow
+- Mermaid
+- SockJS / STOMP
 
-- **Engine:** MySQL 8.0+
-- **Database name:** `agileflow_db`
-- **Connection:** `jdbc:mysql://localhost:3306/agileflow_db` (root / no password by default)
-- **Schema management:** Flyway migrations exist (`V9` → `V19`) but are **disabled** (`spring.flyway.enabled=false`). Hibernate `ddl-auto=update` is active instead during development.
+## 4. Database and Schema
 
-### Key Tables / Entities
+Database:
 
-| Entity | Table | Description |
-|---|---|---|
-| `User` | `users` | Platform users; fields: `nom`, `prenom`, `email`, `password`, `role`, `actif`, `emailVerified`, `dateCreation`, `dateDerniereConnexion` |
-| `Project` | `projects` | Projects with status (`ACTIF`, `ARCHIVE`, `TERMINE`), manager, team, sprints, backlog |
-| `Team` | `teams` | Groups of users managed by a manager |
-| `TeamMember` | `team_members` | Join table User ↔ Team with `joinedAt` |
-| `Sprint` | `sprints` | Sprints linked to a project |
-| `Backlog` | `backlogs` | One backlog per project |
-| `UserStory` | `user_stories` | Stories with priority (`LOW/MEDIUM/HIGH/CRITICAL`), story points, acceptance criteria |
-| `Task` | `tasks` | Tasks with `statut` (`TODO/IN_PROGRESS/REVIEW/DONE`), `priorite`, `isUrgent`, `dateEcheance`, labels, assignment, sprint, story |
-| `Comment` | `comments` | Task comments with `@mention` support |
-| `CommentMention` | `comment_mentions` | Tracks @mentions in comments |
-| `Notification` | `notifications` | In-app notifications per user |
-| `ActivityLog` | `activity_logs` | Audit trail of all actions |
-| `ChatMessage` | `chat_messages` | Chat messages (GLOBAL / PROJECT / PRIVATE channels) |
-| `ChatPresence` | `chat_presence` | Tracks online/offline status per user |
-| `Diagram` | `diagrams` | Diagrams linked to project and optionally a task |
-| `DiagramNode` | `diagram_nodes` | Individual nodes on a diagram canvas |
-| `DiagramEdge` | `diagram_edges` | Edges/connections between nodes |
-| `DiagramCollaborator` | `diagram_collaborators` | Per-diagram permission (EDIT/COMMENT/VIEW) |
-| `UserEmailPreferences` | `user_email_preferences` | Per-user email notification opt-in/opt-out |
-
----
-
-## 5. Authentication & Authorization
-
-### Mechanisms
-1. **JWT (primary):** Access token (15 min) + Refresh token (7 days). Tokens sent as `Authorization: Bearer <token>`. Stored in `localStorage` on the frontend.
-2. **OAuth2 Social Login (optional):** Google and GitHub. Enabled only when the provider env vars are set. On success, backend redirects to `/oauth2/redirect` with tokens in query params.
-3. **Email verification OTP:** On registration, a one-time code is sent to the user's email. The user must verify before the account is active.
-4. **Inactivity timeout:** Frontend auto-logs out after 15 minutes of inactivity.
-
-### Roles
-| Role | Capabilities |
-|---|---|
-| `ROLE_ADMIN` | Platform governance: admin dashboard, users, analytics/reports, activity logs, announcements |
-| `ROLE_MANAGER` | Manage projects, teams, sprints, assign tasks |
-| `ROLE_DEVELOPER` | Access assigned tasks, backlog, kanban, chat, diagrams |
-
-### Security Config Notes
-- CSRF disabled (stateless JWT).
-- Session policy: `IF_REQUIRED` (needed for OAuth2 flow).
-- Public endpoints: `/api/auth/**`, `/oauth2/**`, `/login/oauth2/**`, `/ws/**`, `/swagger-ui/**`, `/v3/api-docs/**`.
-- All other endpoints require authentication.
-- CORS allowed origins: `localhost:5173`, `localhost:5174`, `127.0.0.1:5174`, `localhost:3000`.
-- WebSocket connections authenticated via JWT in the STOMP `CONNECT` frame `Authorization` header.
-
----
-
-## 6. Backend Package Structure
-
-```
-com.agileflow/
-├── AgileflowBackendApplication.java   # Entry point
-├── config/
-│   ├── CorsConfig.java
-│   ├── DataInitializer.java           # Seed data for test profiles
-│   └── WebSocketConfig.java           # STOMP broker + JWT interceptor
-├── controller/                        # 18 REST controllers
-│   ├── AuthController.java            # /api/auth/**
-│   ├── AdminController.java           # /api/admin/**
-│   ├── AnalyticsController.java       # /api/analytics
-│   ├── BacklogController.java         # /api/backlog/**
-│   ├── ChatController.java            # WebSocket: /app/chat/send, /app/chat/presence
-│   ├── ChatRestController.java        # /api/chat/**
-│   ├── CommentController.java         # /api/tasks/{id}/comments/**
-│   ├── DashboardController.java       # /api/dashboard
-│   ├── DiagramController.java         # /api/diagrams/**
-│   ├── EmailPreferencesController.java# /api/email-preferences/**
-│   ├── NotificationController.java    # /api/notifications/**
-│   ├── ProjectController.java         # /api/projects/**
-│   ├── SprintController.java          # /api/sprints/**
-│   ├── StatsController.java           # /api/stats (+ PDF/CSV export)
-│   ├── TaskController.java            # /api/tasks/**
-│   ├── TeamController.java            # /api/teams/**
-│   ├── UserController.java            # /api/users/**
-│   └── UserStoryController.java       # /api/user-stories/**
-├── dto/                               # 51 DTOs (records/classes)
-├── entity/                            # 19 JPA entities
-├── exception/                         # Custom exceptions (ResourceNotFoundException, etc.)
-├── repository/                        # 19 Spring Data JPA repositories
-├── scheduler/
-│   ├── DeadlineScheduler.java         # @Scheduled every 1h
-│   └── PriorityUpdater.java           # Marks tasks urgent, sends 24h/1h reminders
-├── security/
-│   ├── JwtFilter.java
-│   ├── JwtUtil.java
-│   ├── OAuth2LoginSuccessHandler.java
-│   ├── SecurityConfig.java
-│   └── UserDetailsServiceImpl.java
-├── service/                           # 27 service classes
-│   ├── AuthService.java               # Register, login, OAuth, token refresh, email OTP
-│   ├── DiagramService.java            # 34KB — largest service; handles full diagram CRUD + real-time persistence
-│   ├── TaskService.java               # Task CRUD, assignment, move (Kanban)
-│   ├── EmailTemplateService.java      # HTML email templates
-│   ├── EmailNotificationService.java  # Sends emails for deadlines, assignments, mentions
-│   ├── AnalyticsService.java          # Member stats, heatmap, trends + PDF export
-│   ├── StatsService.java              # Burndown, velocity, completion rates
-│   ├── ChatService.java               # Save/fetch messages, presence tracking
-│   ├── NotificationService.java       # In-app notification CRUD
-│   ├── CommentService.java            # Comments + @mention notifications
-│   ├── ProjectService.java
-│   ├── SprintService.java
-│   ├── TeamService.java
-│   ├── UserStoryService.java
-│   ├── UserService.java
-│   ├── AdminService.java
-│   ├── DashboardService.java
-│   ├── PdfReportService.java          # iText PDF stats reports
-│   ├── CsvExportService.java
-│   └── ...
-├── validation/                        # Custom bean validation annotations
-└── websocket/
-    ├── DiagramWebSocketController.java # /app/diagram/{id} — collaborative editing
-    ├── KanbanWebSocket.java            # /app/kanban — real-time Kanban updates
-    └── WebSocketEventListener.java    # Session connect/disconnect
+```text
+agileflow_db
 ```
 
----
+Development schema management:
 
-## 7. WebSocket Architecture
-
-The app uses **STOMP over SockJS** at endpoint `/ws`.
-
-### Broker config
-- Application prefix: `/app`
-- Broker topics: `/topic`, `/queue`
-- User destination prefix: `/user`
-
-### Key channels
-
-| Direction | Destination | Purpose |
-|---|---|---|
-| Client → Server | `/app/chat/send` | Send a chat message |
-| Client → Server | `/app/chat/presence` | Update online/offline status |
-| Server → Client | `/topic/chat/global` | Global chat messages |
-| Server → Client | `/topic/chat/project/{id}` | Project-scoped chat |
-| Server → Client | `/topic/chat/private/{userId}` | Private messages |
-| Server → Client | `/topic/chat/presence` | Online user list broadcast |
-| Client → Server | `/app/diagram/{id}` | Collaborative diagram update |
-| Client → Server | `/app/diagram/{id}/join` | Join diagram session |
-| Client → Server | `/app/diagram/{id}/leave` | Leave diagram session |
-| Server → Client | `/topic/diagram/{id}` | Broadcast diagram changes |
-| Server → Client | `/topic/diagram/{id}/presence` | Collaborator join/leave |
-| Client → Server | `/app/kanban` | Kanban card move |
-| Server → Client | `/topic/kanban/{projectId}` | Kanban board update |
-
-### Diagram Update Event Types
-`NODE_ADDED`, `NODE_MOVED`, `NODE_UPDATED`, `NODE_DELETED`, `EDGE_ADDED`, `EDGE_UPDATED`, `EDGE_DELETED`, `CURSOR_MOVE`, `SELECTION_CHANGE`, `DIAGRAM_TITLE`, `FULL_SYNC`, `JOIN`, `LEAVE`, `ELEMENT_LOCK`, `ELEMENT_UNLOCK`, `CONTENT_UPDATE`
-
-> **Note:** Transient events (`CURSOR_MOVE`, `SELECTION_CHANGE`, `JOIN`, `LEAVE`) are **not persisted** to the DB. All structural changes are persisted via `DiagramService.persistRealtimeUpdate()`.
-
----
-
-## 8. Frontend Structure
-
-```
-frontend/src/
-├── App.tsx                   # Root — inactivity timer (15 min) + AppRouter
-├── main.tsx                  # ReactDOM bootstrap, AuthContext, MUI ThemeProvider
-├── api/                      # 16 Axios API modules (one per domain)
-│   ├── axiosInstance.ts      # Base Axios + request interceptor (attach JWT) + 401/refresh interceptor
-│   ├── axiosInterceptor.ts
-│   ├── adminApi.ts
-│   ├── analyticsApi.ts
-│   ├── backlogApi.ts
-│   ├── chatApi.ts
-│   ├── dashboardApi.ts
-│   ├── diagramsApi.ts
-│   ├── emailPreferencesApi.ts
-│   ├── notificationsApi.ts
-│   ├── projectsApi.ts
-│   ├── sprintsApi.ts
-│   ├── statsApi.ts
-│   ├── tasksApi.ts
-│   ├── teamsApi.ts
-│   └── usersApi.ts
-├── components/               # Reusable UI components organized by domain
-│   ├── ProtectedRoute.tsx
-│   ├── WebSocketStatus.tsx
-│   ├── layout/               # AppLayout (sidebar + topbar)
-│   ├── chat/
-│   ├── kanban/
-│   ├── backlog/
-│   ├── sprints/
-│   ├── teams/
-│   ├── users/
-│   ├── projects/
-│   ├── diagram/
-│   ├── diagrams/
-│   ├── analytics/
-│   ├── stats/
-│   ├── notifications/
-│   └── dashboard/
-├── context/
-│   └── AuthContext.tsx       # React context wrapping authStore for token/user
-├── data/                     # Static mock/seed data
-├── hooks/                    # Custom React hooks
-├── pages/                    # Page-level components (route targets)
-│   ├── DashboardPage.tsx
-│   ├── DiagramFlow/          # DiagramListPage + DiagramEditorPage (lazy-loaded)
-│   ├── admin/AdminPage.tsx, ActivityLogsPage.tsx
-│   ├── analytics/AnalyticsDashboard.tsx (lazy)
-│   ├── auth/LoginPage, RegisterPage, OAuthRedirectPage
-│   ├── backlog/BacklogPage.tsx
-│   ├── diagrams/
-│   ├── kanban/KanbanBoard.tsx
-│   ├── notifications/NotifCenter.tsx
-│   ├── projects/ProjectsListPage.tsx
-│   ├── settings/SettingsPage.tsx
-│   ├── sprints/SprintsPage.tsx
-│   ├── stats/StatsPage.tsx (lazy)
-│   ├── teams/TeamsPage, TeamDetailsPage
-│   └── users/UsersListPage, UserProfilePage
-├── routes/AppRouter.tsx      # React Router v6 route definitions
-├── store/
-│   ├── authStore.ts          # Zustand store (token, refreshToken, user, setAuth, logout)
-│   ├── useAuthStore.ts
-│   └── diagramStore.ts       # Zustand store for diagram editor state
-├── types/index.ts            # All TypeScript interfaces & types (458 lines)
-├── utils/                    # Utility functions
-└── test/                     # Vitest unit tests
-```
-
-### Routing Table
-
-| Path | Component | Auth Required | Role Restriction |
-|---|---|---|---|
-| `/login` | LoginPage | No | — |
-| `/register` | RegisterPage | No | — |
-| `/oauth2/redirect` | OAuthRedirectPage | No | — |
-| `/dashboard` | DashboardPage | Yes | — |
-| `/analytics` | AnalyticsDashboard | Yes | — |
-| `/stats` | StatsPage | Yes | — |
-| `/diagrams` | DiagramListPage | Yes | — |
-| `/diagrams/:id` | DiagramEditorPage | Yes | — |
-| `/projects` | ProjectsListPage | Yes | — |
-| `/users` | UsersListPage | Yes | — |
-| `/users/:id` | UserProfilePage | Yes | — |
-| `/teams` | TeamsPage | Yes | — |
-| `/teams/:id` | TeamDetailsPage | Yes | — |
-| `/sprints` | SprintsPage | Yes | — |
-| `/backlog` | BacklogPage | Yes | — |
-| `/kanban` | KanbanBoard | Yes | — |
-| `/settings` | SettingsPage | Yes | — |
-| `/admin` | AdminPage | Yes | ROLE_ADMIN |
-| `/activity-logs` | ActivityLogsPage | Yes | ROLE_ADMIN |
-| `/notifications` | NotifCenter | Yes | — |
-| `*` | → /dashboard | — | — |
-
-`AnalyticsDashboard`, `StatsPage`, `DiagramListPage`, `DiagramEditorPage` are **lazy-loaded**.
-
----
-
-## 9. Key Features & How They Work
-
-### 9.1 Kanban Board
-- Drag-and-drop with `dnd-kit`.
-- Task status columns: `TODO → IN_PROGRESS → REVIEW → DONE`.
-- Real-time updates broadcast over WebSocket (`/topic/kanban/{projectId}`).
-- `KanbanWebSocket.java` on backend handles the STOMP messages.
-
-### 9.2 Collaborative Diagram Editor
-- Canvas built with **ReactFlow** (nodes, edges, handles).
-- Diagram types: FLOWCHART, PROCESS, DECISION, UML, BPMN, ERD, NETWORK, MINDMAP, USE_CASE, CLASS, SEQUENCE, ACTIVITY, COMPONENT, DEPLOYMENT, CUSTOM.
-- Multiple collaborators can edit simultaneously; cursor positions broadcast in real-time.
-- Per-user permissions: `EDIT`, `COMMENT`, `VIEW`.
-- Thumbnails captured with `html-to-image`.
-- Backend stores full canvas state (`canvas_data` LONGTEXT) + normalized `diagram_nodes` and `diagram_edges` tables.
-- Export endpoint: `GET /api/diagrams/{id}/export/{format}`.
-
-### 9.3 Chat System
-- Three channel types: **GLOBAL** (all users), **PROJECT** (per project), **PRIVATE** (1-to-1).
-- WebSocket for real-time delivery, REST (`/api/chat/messages`) for pagination/history.
-- Online presence tracking via `ChatPresence` entity + `/topic/chat/presence`.
-
-### 9.4 Task Priority & Deadline System
-- `DeadlineScheduler` runs every **1 hour** (fixedRate = 3 600 000 ms).
-- `PriorityUpdater` auto-marks tasks within 24h of deadline as `isUrgent = true`.
-- Email reminders: 24h before deadline and 1h before deadline (sent once, tracked by flags `deadline24hReminderSent`, `deadline1hReminderSent`).
-
-### 9.5 Email Notifications
-- Sent via Gmail SMTP (port 587, STARTTLS).
-- Configurable per-user: Sprint Start, Task Assigned, Deadline, Mention.
-- HTML templates via `EmailTemplateService`.
-- Preview endpoint: `GET /api/email-preferences/me/preview?type={TYPE}`.
-
-### 9.6 Analytics & Stats
-- **Analytics** (`/api/analytics`): admin dashboard showing KPI cards (activities, completed tasks, active members), member contribution bar chart, and daily trend line chart. Filterable by period (WEEK / MONTH / SPRINT). PDF export supported (iText).
-- **Stats** (`/api/stats`): burndown chart, velocity chart, completion rate, task distribution. Filterable by project and sprint. Supports PDF and CSV export.
-- Analytics dashboard displays metrics in a clean grid layout: 3 KPI cards (desktop: 3 cols, tablet: 2 cols, mobile: 1 col), followed by two side-by-side charts (6 cols each on desktop, stacked on mobile).
-
-### 9.7 In-App Notifications
-- Created on events (task assignment, sprint start, @mention, deadline).
-- Paginated at `/api/notifications`.
-- Mark single or all as read. Delete individual notifications.
-- For `ROLE_ADMIN`, `/notifications` is an announcements composer instead of a personal inbox.
-- Admin announcements can target all users, members of a specific project, or one specific user. Project and user targets are searchable in the UI.
-
-### 9.8 Comments & @Mentions
-- Comments on tasks support `@username` syntax.
-- `MentionParser` extracts mentioned users.
-- `MentionNotificationService` creates in-app notifications and sends emails to mentioned users.
-
-### 9.9 Activity Log
-- All significant actions (task created/updated, sprint started, etc.) are recorded in `activity_logs`.
-- Used by Analytics service for trend data and activity trends.
-- Admins can browse `/activity-logs` with search, project/user/action filters, grouping by date/project/user, and collapsible activity groups.
-
----
-
-## 10. REST API Summary
-
-Base URL: `http://localhost:8080/api`
-
-| Endpoint group | Controller | Notable endpoints |
-|---|---|---|
-| `/auth` | AuthController | POST /register, POST /verify-email, POST /login, POST /refresh, POST /logout, GET /check-email |
-| `/users` | UserController | GET /, GET /:id, POST /, PUT /:id, DELETE /:id |
-| `/teams` | TeamController | Full CRUD + member management |
-| `/projects` | ProjectController | Full CRUD |
-| `/sprints` | SprintController | Full CRUD + start/complete sprint |
-| `/backlog` | BacklogController | GET by project, manage stories |
-| `/user-stories` | UserStoryController | Full CRUD + assign to sprint |
-| `/tasks` | TaskController | Full CRUD + assign + move (Kanban) |
-| `/tasks/{id}/comments` | CommentController | CRUD comments with @mention |
-| `/kanban` | (WebSocket only) | — |
-| `/analytics` | AnalyticsController | GET (period filter) + GET /export.pdf |
-| `/stats` | StatsController | GET (project/sprint filter) + export.pdf + export.csv |
-| `/diagrams` | DiagramController | Full CRUD + collaborators + content update + export |
-| `/chat` | ChatRestController | GET /messages (paginated), GET /presence |
-| `/notifications` | NotificationController | GET (paginated), PUT /:id/read, PUT /read-all, DELETE /:id |
-| `/email-preferences` | EmailPreferencesController | GET /me, PUT /me, GET /me/preview |
-| `/dashboard` | DashboardController | GET (role-aware stats) |
-| `/admin` | AdminController | GET /dashboard, GET /activity-logs (filterable), POST /announcements |
-
----
-
-## 11. Environment & Configuration
-
-### Backend (`application.properties`)
 ```properties
-server.port=8080
-spring.datasource.url=jdbc:mysql://localhost:3306/agileflow_db
-spring.datasource.username=root
-spring.datasource.password=           # empty by default
 spring.jpa.hibernate.ddl-auto=update
 spring.flyway.enabled=false
-jwt.secret=${JWT_SECRET:change-me-in-local-env}
-jwt.expiration=900000                  # 15 min (ms)
-jwt.refresh-expiration=604800000       # 7 days (ms)
-app.frontend-url=http://localhost:5173
-spring.mail.host=smtp.gmail.com
-spring.mail.port=587
-spring.mail.username=${MAIL_USERNAME:}
-spring.mail.password=${MAIL_PASSWORD:}
 ```
 
-OAuth2 providers are configured via environment variables:
-- `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID`
-- `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET`
-- `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_ID`
-- `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_SECRET`
+Important entities:
 
-### Frontend (`.env`)
+| Entity | Purpose |
+|---|---|
+| `User` | Platform user, global role, activation, email verification |
+| `Project` | Agile project and owner |
+| `ProjectMember` | Membership and project role |
+| `ProjectInvitation` | Pending project invitation with token and role |
+| `Task` | Main work item with type, status, priority, parent/children |
+| `TypeTache` | EPIC, STORY, TASK, FEATURE, BUG, SUBTASK |
+| `Sprint` | Legacy support; hidden from current main UI |
+| `UserStory` | Legacy story/backlog support and epic grouping fallback |
+| `SavedView` | Saved planning filters |
+| `ActivityLog` | Audit trail, tolerant of deleted task references |
+| `Diagram` | Diagram metadata and persisted canvas |
+| `DiagramNode` / `DiagramEdge` | Normalized diagram graph |
+| `Comment` | Task comments |
+| `Notification` | In-app notifications |
+| `ChatMessage` | Chat messages |
+
+Recent schema concepts:
+
+- `tasks.type_tache`
+- `tasks.parent_task_id`
+- `tasks.date_debut`
+- project member roles: `ADMIN`, `DEVELOPER`, `VIEWER`
+- project invitation role
+- `saved_views`
+- `project_invitations`
+
+## 5. Authentication and Security
+
+Authentication:
+
+- JWT access token, 15 minutes.
+- Refresh token, 7 days.
+- Tokens stored in frontend localStorage.
+- Axios interceptor attaches token and refreshes on 401.
+- Email verification OTP during registration.
+- Optional OAuth2 Google/GitHub.
+- Registration can accept an invitation token.
+
+Important config:
+
+```properties
+jwt.secret=${JWT_SECRET:change-me-local-dev-secret}
+app.frontend-url=http://localhost:5173
+```
+
+OAuth provider secrets and Gmail credentials must be supplied through local
+configuration or environment variables, not committed.
+
+Global roles used by the current UI:
+
+- `ROLE_ADMIN`
+- `ROLE_DEVELOPER`
+
+Project roles used inside a project:
+
+- `OWNER`: project creator/owner. Full project permissions.
+- `ADMIN`: can manage members, invitations and project content.
+- `DEVELOPER`: can create and edit project content.
+- `VIEWER`: read-only access.
+
+Project-level permissions are resolved through `ProjectAccessService`.
+
+## 6. Backend Packages
+
+```text
+com.agileflow/
+|-- config/
+|-- controller/
+|-- dto/
+|   |-- summary/
+|   `-- timeline/
+|-- entity/
+|-- exception/
+|-- repository/
+|-- scheduler/
+|-- security/
+|-- service/
+`-- websocket/
+```
+
+Important services:
+
+| Service | Purpose |
+|---|---|
+| `AuthService` | Register, login, refresh, email OTP, OAuth integration |
+| `ProjectService` | Project CRUD |
+| `ProjectMemberService` | Members, roles, invitations, resend, accept |
+| `InvitationService` | Legacy/project invitation support |
+| `ProjectAccessService` | Owner/member/admin/developer/viewer permissions |
+| `TaskService` | Main task CRUD, assignment, move, subtasks |
+| `PlanningService` | List planning endpoint, inline edit, bulk delete, saved views |
+| `KanbanService` | Kanban board and quick create |
+| `TimelineService` | Gantt data, date update, epic creation |
+| `ProjectSummaryService` | Project summary dashboard |
+| `TaskDeadlineHierarchyService` | Parent/epic deadline >= max child deadline |
+| `DiagramService` | Diagram CRUD and real-time persistence |
+| `AnalyticsService` | Admin analytics and PDF export |
+| `StatsService` | Stats page metrics and exports |
+| `ActivityLogService` | Audit logging |
+| `EmailNotificationService` | Email notification sending |
+
+## 7. Main Backend Endpoints
+
+Project and members:
+
+```text
+GET    /api/projects
+GET    /api/projects/{id}
+POST   /api/projects
+PUT    /api/projects/{id}
+DELETE /api/projects/{id}
+
+GET    /api/projects/{projectId}/members
+GET    /api/projects/{projectId}/members/stats
+POST   /api/projects/{projectId}/members/invite
+PATCH  /api/projects/{projectId}/members/{userId}/role
+DELETE /api/projects/{projectId}/members/{userId}
+POST   /api/projects/{projectId}/members/{invitationId}/resend-invitation
+POST   /api/projects/invitations/accept
+POST   /api/projects/invitations/{invitationId}/accept
+```
+
+Project summary:
+
+```text
+GET /api/projects/{projectId}/summary
+GET /api/projects/{projectId}/summary/activity
+GET /api/projects/{projectId}/summary/workload
+GET /api/projects/{projectId}/summary/epic-progress
+```
+
+Tasks and planning:
+
+```text
+GET    /api/tasks
+POST   /api/tasks
+PUT    /api/tasks/{id}
+DELETE /api/tasks/{id}
+PUT    /api/tasks/{id}/move
+PUT    /api/tasks/{id}/assign
+
+GET    /api/tasks/planning
+PUT    /api/tasks/planning/bulk
+PATCH  /api/tasks/{id}/inline
+GET    /api/tasks/planning/export
+```
+
+Kanban and timeline:
+
+```text
+GET   /api/tasks/kanban/board
+POST  /api/tasks/kanban/quick-create
+
+GET   /api/timeline
+PATCH /api/timeline/{taskId}/dates
+POST  /api/timeline/epics
+```
+
+Other groups:
+
+```text
+GET /api/diagrams
+GET /api/analytics
+GET /api/analytics/export.pdf
+GET /api/stats
+GET /api/admin/activity-logs
+```
+
+## 8. WebSocket
+
+Endpoint:
+
+```text
+/ws
+```
+
+Important destinations:
+
+```text
+/app/kanban
+/topic/kanban/{projectId}
+
+/app/diagram/{diagramId}
+/topic/diagram/{diagramId}
+/topic/diagram/{diagramId}/presence
+
+/app/chat/send
+/topic/chat/project/{projectId}
+/topic/chat/private/{userId}
+/topic/chat/presence
+```
+
+Kanban messages support:
+
+- `TASK_CREATED`
+- `TASK_UPDATED`
+- `TASK_MOVED`
+- `TASK_DELETED`
+- legacy `"refresh"` message
+
+Diagram transient events like cursor movement and selection changes are not
+persisted.
+
+## 9. Frontend Structure
+
+```text
+frontend/src/
+|-- api/
+|-- components/
+|   |-- common/
+|   |-- layout/
+|   `-- projects/
+|-- context/
+|-- hooks/
+|-- pages/
+|   |-- DiagramFlow/
+|   |-- kanban/
+|   |-- planning/
+|   |-- projects/summary/
+|   |-- teams/
+|   `-- timeline/
+|-- routes/
+|-- store/
+|-- types/
+`-- utils/
+```
+
+Important stores:
+
+| Store | Purpose |
+|---|---|
+| `authStore` | JWT, refresh token, user |
+| `activeProjectStore` | Header-selected project |
+| `planningStore` | Planning list data and UI state |
+| `kanbanStore` | Kanban board data and DnD state |
+| `timelineStore` | Gantt data and view state |
+| `projectSummaryStore` | Summary dashboard state |
+| `diagramStore` | Diagram editor state |
+
+There are legacy auth store references in the codebase. Both auth stores must
+read `localStorage.user` safely to avoid blank pages.
+
+## 10. Current Frontend Routes
+
+| Route | Purpose |
+|---|---|
+| `/` | Redirects to active project summary when possible |
+| `/login` | Login |
+| `/register` | Register + invitation token support |
+| `/oauth2/redirect` | OAuth callback frontend |
+| `/dashboard` | Redirect/fallback to active project summary |
+| `/projects` | Legacy/list route, no longer main sidebar entry |
+| `/projects/:projectId/summary` | Project summary dashboard |
+| `/planning` | Jira-style list planning |
+| `/kanban` | Kanban board |
+| `/timeline` | Chronologie/Gantt |
+| `/diagrams` | Diagram list |
+| `/diagrams/:id` | Diagram editor |
+| `/teams` | Project team page |
+| `/users` | Admin users |
+| `/users/:id` | User profile |
+| `/admin` | Admin dashboard |
+| `/analytics` | Admin Analytics / Reports |
+| `/activity-logs` | Admin activity logs |
+| `/notifications` | Notification center / admin announcements |
+
+Current non-admin sidebar:
+
+```text
+Resume
+DiagramFlow
+Planification
+Kanban
+Chronologie
+Equipes
+```
+
+Current non-admin sidebar intentionally hides:
+
+- Tableau de bord
+- Projets
+- Analytics
+- Stats
+- Backlog
+
+The active project header controls project-scoped pages.
+
+## 11. Feature Notes
+
+### Global Header
+
+- Displays AgileFlow branding.
+- Displays active project selector.
+- Project selector supports create/edit/delete from the dropdown/menu.
+- Member invite button is next to the project selector.
+- Project-scoped pages should use `activeProjectStore`.
+
+### Project Summary
+
+Route:
+
+```text
+/projects/:projectId/summary
+```
+
+Data source:
+
+```text
+/api/projects/{projectId}/summary
+```
+
+Contains:
+
+- "Bonjour, ..." greeting.
+- Received project invitations.
+- KPI cards.
+- Status donut.
+- Recent activity without the open-in-new icon.
+- Priority breakdown.
+- Types of work.
+- Team workload.
+- Epic progress.
+
+### Teams
+
+Route:
+
+```text
+/teams
+```
+
+Data sources:
+
+```text
+/api/projects/{projectId}/members
+/api/projects/{projectId}/members/stats
+```
+
+Capabilities:
+
+- table/grid view;
+- search;
+- role/status filters;
+- invite member;
+- resend invitation;
+- update project role;
+- remove member;
+- fallback stats calculation if stats endpoint fails.
+
+### Planning
+
+Route:
+
+```text
+/planning
+```
+
+Rules:
+
+- uses active project from header;
+- no project filter dropdown;
+- no labels/actions columns;
+- no sprint principle in the main UI;
+- group by defaults to none/no grouping;
+- group by story is removed from combo boxes;
+- selected tasks only expose delete action;
+- task details panel is centered inside the table area;
+- assignee choices are limited to project members;
+- reporter means the user who assigned/reported the task.
+
+### Kanban
+
+Route:
+
+```text
+/kanban
+```
+
+Rules:
+
+- epics are not rendered as cards;
+- subtasks are not rendered as cards;
+- tasks belonging to an epic show epic context;
+- board uses fixed statuses TODO, IN_PROGRESS, REVIEW, DONE;
+- drag and drop updates status;
+- header project tabs/extra toolbar were removed for a cleaner shared layout.
+
+### Timeline
+
+Route:
+
+```text
+/timeline
+```
+
+Rules:
+
+- tasks without epic are hidden;
+- subtasks are hidden;
+- date header remains sticky/fixed during horizontal scroll;
+- week view displays day numbers;
+- today marker displays the day number;
+- parent/epic deadline is automatically at least the max child deadline.
+
+### Analytics / Reports
+
+Route:
+
+```text
+/analytics
+```
+
+Admin-facing page.
+
+Important current behavior:
+
+- completed task metrics are calculated from `tasks` with `statut = DONE`;
+- activity metrics still come from `activity_logs`;
+- direct project tasks are included, not only sprint tasks.
+
+### Activity Logs
+
+`ActivityLog.task` uses Hibernate `@NotFound(action = IGNORE)` so logs can
+survive deleted tasks.
+
+## 12. Development Commands
+
+Backend:
+
+```powershell
+cd backend
+mvn -DskipTests compile
+mvn spring-boot:run
+```
+
+Frontend:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+npm exec tsc -- --noEmit
+```
+
+Clean Vite dependency cache:
+
+```powershell
+cd frontend
+Remove-Item -Recurse -Force node_modules/.vite/deps
+npm run dev
+```
+
+## 13. Environment
+
+Backend local safe defaults:
+
+```properties
+server.port=8080
+spring.datasource.url=jdbc:mysql://localhost:3306/agileflow_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+spring.datasource.username=root
+spring.datasource.password=
+spring.jpa.hibernate.ddl-auto=update
+spring.flyway.enabled=false
+app.frontend-url=http://localhost:5173
+```
+
+Frontend:
+
 ```env
 VITE_API_URL=http://localhost:8080/api
 VITE_WS_URL=http://localhost:8080/ws
 ```
 
----
+Do not commit:
 
-## 12. Development Setup
+- OAuth client IDs/secrets
+- Gmail app password
+- real JWT secret
+- local `.env`
 
-### Prerequisites
-- Java 21
-- Node.js 18+ & npm
-- MySQL 8.0+
-- Maven (wrapper `./mvnw` included)
+## 14. Known Constraints and Maintenance Notes
 
-### Running the backend
-```powershell
-cd backend
-./mvnw spring-boot:run
-```
-
-### Running the frontend
-```powershell
-cd frontend
-npm install        # first time only
-cp .env.example .env
-npm run dev
-```
-
-### Seeding test data (Windows)
-```powershell
-cd backend/src/main/resources
-./seed-data.bat
-```
-**Warning:** This wipes all existing data and re-creates test data.
-
-### Test accounts (password: `Password@2024`)
-| Role | Email |
-|---|---|
-| Admin | admin@agileflow.com |
-| Manager | manager@agileflow.com |
-| Developer | alice@agileflow.com |
-| Developer | bob@agileflow.com |
-
----
-
-## 13. Testing
-
-### Backend
-- Framework: Spring Boot Test + Spring Security Test
-- Test DB: H2 (in-memory)
-- Run: `./mvnw test`
-
-### Frontend
-- Framework: Vitest + React Testing Library + jsdom
-- Test files: `*.test.tsx` (e.g. `DashboardPage.test.tsx`)
-- Run: `npm run test` (single pass) or `npm run test -- --watch`
-
----
-
-## 14. Known Patterns & Conventions
-
-1. **French field names in entities:** `nom`, `prenom`, `titre`, `statut`, `priorite`, `dateEcheance`, `actif`, `dateCreation`. DTO field names generally use English (or French aliases mapped by service layer).
-2. **Flyway disabled:** Schema is fully managed by Hibernate `ddl-auto=update`. Flyway migration files exist in `db/migration/` (V9–V19) but are NOT run on startup. They serve as documentation of schema evolution.
-3. **Dual field redundancy in `Diagram`:** `title`/`titre`, `shared`/`isShared`, `canvasData`/`json`, `owner`/`createdBy` — all kept in sync by `syncCompatibilityFields()` to support iterative refactoring without breaking existing data.
-4. **Token storage:** JWT stored in `localStorage`. Axios interceptor auto-refreshes on 401.
-5. **No Redux:** State managed with Zustand (`authStore`, `diagramStore`).
-6. **Role-based UI:** Frontend uses `user.role` from the JWT payload to conditionally render admin routes and UI elements.
-7. **CORS:** Hard-coded to specific localhost origins — change `SecurityConfig.corsConfigurationSource()` for deployment.
-8. **Notification service dual-channel:** Every important event creates both an in-app `Notification` entity AND can trigger an email (if the user's email preferences allow it).
-9. **Admin navigation:** Admins use a trimmed governance nav only: Dashboard (`/admin`), Users, Analytics / Reports, Activity Logs, Notifications. Admin login/register/OAuth redirects go to `/admin`.
-
----
-
-## 15. Areas of Active Development / Known TODOs
-
-- Flyway is disabled — the project may need a proper migration strategy before production.
-- OAuth2 is optional and only activates when provider env vars are present (graceful degradation).
-- `DataInitializer.java` is a large (10 KB) seed class — likely still being extended as new features are added.
-- The diagram editor (`DiagramService.java`, 34 KB) is the most complex service and the most recently added feature (V18/V19 migrations).
-- No CI/CD pipeline configured.
-- Production deployment has not been addressed (no Docker, no cloud config).
+- Flyway is disabled in development.
+- Some legacy Sprint/UserStory code remains for compatibility.
+- Sprint UI is hidden from current main flows unless a legacy page still uses it.
+- Project-focused pages rely on the active project selector.
+- Prefer `Task.typeTache` for current UI logic.
+- Admin analytics and project summary should use repository methods that include
+  direct project tasks, not only sprint/user-story tasks.
+- If the frontend becomes blank, inspect the browser console first. Known causes:
+  invalid `localStorage.user` and stale Vite optimized dependencies.
+- Use `AppErrorBoundary` to display runtime errors instead of a blank screen.

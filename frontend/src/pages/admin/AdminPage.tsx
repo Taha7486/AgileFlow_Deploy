@@ -93,7 +93,6 @@ const AdminPage = () => {
   const archivedProjects = projects.filter((project) => project.status === 'ARCHIVE').length;
   const finishedProjects = projects.filter((project) => project.status === 'TERMINE').length;
   const admins = users.filter((row) => row.role === 'ROLE_ADMIN').length;
-  const managers = users.filter((row) => row.role === 'ROLE_MANAGER').length;
   const developers = users.filter((row) => row.role === 'ROLE_DEVELOPER').length;
 
   return (
@@ -147,7 +146,6 @@ const AdminPage = () => {
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Roles utilisateurs</Typography>
                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                       <Chip label={`${admins} admins`} color="error" variant="outlined" />
-                      <Chip label={`${managers} managers`} color="warning" variant="outlined" />
                       <Chip label={`${developers} developpeurs`} color="info" variant="outlined" />
                     </Stack>
                   </Box>

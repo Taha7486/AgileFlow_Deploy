@@ -8,13 +8,12 @@ vi.mock('../../api/analyticsApi', () => ({
     period: 'WEEK',
     startDate: '2026-04-20',
     endDate: '2026-04-26',
-    sprintId: null,
     totalActivities: 11,
     completedTasks: 4,
     activeMembers: 2,
     memberStats: [
       { userId: 1, memberName: 'Alice Dev', role: 'ROLE_DEVELOPER', activityCount: 7, completedTasks: 3 },
-      { userId: 2, memberName: 'Sara Manager', role: 'ROLE_MANAGER', activityCount: 4, completedTasks: 1 },
+      { userId: 2, memberName: 'Sara Owner', role: 'ROLE_DEVELOPER', activityCount: 4, completedTasks: 1 },
     ],
     heatmap: [
       { date: '2026-04-20', activityCount: 2 },
@@ -41,24 +40,7 @@ vi.mock('../../api/projectsApi', () => ({
       status: 'ACTIF',
       managerId: 2,
       managerName: 'Sara Manager',
-      sprintCount: 1,
       taskCount: 3,
-    },
-  ]),
-}));
-
-vi.mock('../../api/sprintsApi', () => ({
-  fetchSprintsByProject: vi.fn().mockResolvedValue([
-    {
-      id: 20,
-      nom: 'Sprint Analytics',
-      description: null,
-      dateDebut: '2026-04-20',
-      dateFin: '2026-04-26',
-      capacitePoints: 20,
-      pointsUtilises: 8,
-      statut: 'EN_COURS',
-      projetId: 10,
     },
   ]),
 }));

@@ -14,18 +14,18 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { Add, GroupAdd } from '@mui/icons-material';
+import { Add } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { createProject, deleteProject, fetchProjects, updateProject } from '../../api/projectsApi';
 import { fetchTeams } from '../../api/teamsApi';
 import type { CreateProjectPayload, ProjectListItem, TeamListItem } from '../../types';
 import CreateProjectModal from '../../components/projects/CreateProjectModal';
 import ProjectCard from '../../components/projects/ProjectCard';
-import ProjectInviteModal from '../../components/projects/ProjectInviteModal';
-import ProjectReceivedInvitations from '../../components/projects/ProjectReceivedInvitations';
 
 const ProjectsListPage = () => {
   const { user: current } = useAuth();
+  const navigate = useNavigate();
 
   const [rows, setRows] = useState<ProjectListItem[]>([]);
   const [teams, setTeams] = useState<TeamListItem[]>([]);
@@ -33,7 +33,6 @@ const ProjectsListPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [inviteTarget, setInviteTarget] = useState<ProjectListItem | null>(null);
   const [saving, setSaving] = useState(false);
   const [editTarget, setEditTarget] = useState<ProjectListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProjectListItem | null>(null);
@@ -130,8 +129,6 @@ const ProjectsListPage = () => {
         </Box>
       </Box>
 
-      <ProjectReceivedInvitations onAccepted={load} />
-
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       {loading ? (
@@ -142,26 +139,25 @@ const ProjectsListPage = () => {
         <Grid container spacing={2.5}>
           {filtered.map((project) => (
             <Grid item xs={12} md={6} xl={4} key={project.id}>
-              <ProjectCard
-                project={project}
-                actions={(
-                  <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                    {canEditProject(project) && (
-                      <>
-                        <Button size="small" variant="outlined" startIcon={<GroupAdd />} onClick={() => setInviteTarget(project)}>
-                          Membres
-                        </Button>
-                        <Button size="small" variant="outlined" onClick={() => { setEditTarget(project); setDialogOpen(true); }}>
-                          Modifier
-                        </Button>
-                        <Button size="small" color="error" onClick={() => setDeleteTarget(project)}>
-                          Supprimer
-                        </Button>
-                      </>
-                    )}
-                  </Box>
-                )}
-              />
+              <Box onClick={() => navigate(`/projects/${project.id}/summary`)} sx={{ height: '100%', cursor: 'pointer' }}>
+                <ProjectCard
+                  project={project}
+                  actions={(
+                    <Box onClick={(event) => event.stopPropagation()} sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                      {canEditProject(project) && (
+                        <>
+                          <Button size="small" variant="outlined" onClick={() => { setEditTarget(project); setDialogOpen(true); }}>
+                            Modifier
+                          </Button>
+                          <Button size="small" color="error" onClick={() => setDeleteTarget(project)}>
+                            Supprimer
+                          </Button>
+                        </>
+                      )}
+                    </Box>
+                  )}
+                />
+              </Box>
             </Grid>
           ))}
         </Grid>
@@ -177,13 +173,6 @@ const ProjectsListPage = () => {
           setEditTarget(null);
         }}
         onSubmit={handleSave}
-      />
-
-      <ProjectInviteModal
-        open={!!inviteTarget}
-        project={inviteTarget}
-        onClose={() => setInviteTarget(null)}
-        onUpdated={load}
       />
 
       <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)}>

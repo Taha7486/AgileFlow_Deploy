@@ -1,247 +1,312 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import GridViewIcon from '@mui/icons-material/GridView';
+import GroupIcon from '@mui/icons-material/Group';
+import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import ViewListIcon from '@mui/icons-material/ViewList';
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import FormControl from '@mui/material/FormControl';
+import IconButton from '@mui/material/IconButton';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import Paper from '@mui/material/Paper';
+import Select, { SelectChangeEvent } from '@mui/material/Select';
+import Snackbar from '@mui/material/Snackbar';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
 import {
-  Box, Typography, Button, TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Paper, IconButton, CircularProgress, Alert, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions,
-  Snackbar, MenuItem,
-} from '@mui/material';
-import { Add, Delete, Edit, Visibility } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import type { TeamListItem, UserListItem } from '../../types';
-import { createTeam, deleteTeam, fetchTeams, updateTeam } from '../../api/teamsApi';
-import { fetchUsers } from '../../api/usersApi';
-import { formatDate } from '../../utils/formatDate';
+  getTeamMembers,
+  getTeamStats,
+  removeMember,
+  resendInvitation,
+  updateMemberRole,
+} from '../../api/teamApi';
+import { useActiveProjectStore } from '../../store/activeProjectStore';
+import { useAuthStore } from '../../store/authStore';
+import type { MemberRole, MemberStatus, TeamMember, TeamStats } from '../../types/team';
+import InviteModal from './components/InviteModal';
+import MemberActionMenu from './components/MemberActionMenu';
+import MembersGrid from './components/MembersGrid';
+import MembersTable from './components/MembersTable';
+import TeamStatsCards from './components/TeamStatsCards';
+import PageHeader from '../../components/layout/PageHeader';
+
+type ViewMode = 'table' | 'grid';
+type SnackbarState = { open: boolean; message: string; severity: 'success' | 'error' };
+
+const roleLabels: Record<MemberRole | 'ALL', string> = {
+  ALL: 'Tous les roles',
+  OWNER: 'Owner',
+  ADMIN: 'Admin',
+  DEVELOPER: 'Developpeur',
+  VIEWER: 'Lecteur',
+};
+
+const statusLabels: Record<MemberStatus | 'ALL', string> = {
+  ALL: 'Tous les statuts',
+  ACTIVE: 'Actif',
+  INVITED: 'Invite',
+  DISABLED: 'Desactive',
+};
 
 const TeamsPage = () => {
-  const navigate = useNavigate();
-  const { user: current } = useAuth();
-  const canManage = current?.role === 'ROLE_ADMIN' || current?.role === 'ROLE_MANAGER';
+  const activeProject = useActiveProjectStore((state) => state.activeProject);
+  const user = useAuthStore((state) => state.user);
 
-  const canEditTeam = (t: TeamListItem) =>
-    current?.role === 'ROLE_ADMIN' || (current?.role === 'ROLE_MANAGER' && current.id === t.managerId);
-
-  const [rows, setRows] = useState<TeamListItem[]>([]);
-  const [users, setUsers] = useState<UserListItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [stats, setStats] = useState<TeamStats | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [snack, setSnack] = useState<{ msg: string; sev: 'success' | 'error' } | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<MemberRole | 'ALL'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<MemberStatus | 'ALL'>('ALL');
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
+  const [snackbar, setSnackbar] = useState<SnackbarState>({ open: false, message: '', severity: 'success' });
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editTeam, setEditTeam] = useState<TeamListItem | null>(null);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [managerId, setManagerId] = useState<number>(0);
-  const [saving, setSaving] = useState(false);
+  const notify = (message: string, severity: SnackbarState['severity']) => {
+    setSnackbar({ open: true, message, severity });
+  };
 
-  const managerCandidates = useMemo(
-    () => users.filter((u) => u.role === 'ROLE_ADMIN' || u.role === 'ROLE_MANAGER'),
-    [users],
-  );
-
-  const load = useCallback(async () => {
+  const loadData = useCallback(async () => {
+    if (!activeProject?.id) return;
     setLoading(true);
     setError(null);
     try {
-      const [t, u] = await Promise.all([fetchTeams(), fetchUsers()]);
-      setRows(t);
-      setUsers(u.filter((x) => x.active !== false));
-    } catch {
-      setError('Impossible de charger les équipes.');
+      const [membersData, statsData] = await Promise.all([
+        getTeamMembers(activeProject.id),
+        getTeamStats(activeProject.id),
+      ]);
+      setMembers(membersData);
+      setStats(statsData);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Impossible de charger l equipe du projet.';
+      setError(message);
+      notify(message, 'error');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeProject?.id]);
 
   useEffect(() => {
-    load();
-  }, [load]);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => r.name.toLowerCase().includes(q) || (r.description ?? '').toLowerCase().includes(q));
-  }, [rows, search]);
-
-  const openCreate = () => {
-    setEditTeam(null);
-    setName('');
-    setDescription('');
-    setManagerId(managerCandidates[0]?.id ?? 0);
-    setDialogOpen(true);
-  };
-
-  const openEdit = (t: TeamListItem) => {
-    setEditTeam(t);
-    setName(t.name);
-    setDescription(t.description ?? '');
-    setManagerId(t.managerId);
-    setDialogOpen(true);
-  };
-
-  const saveTeam = async () => {
-    if (!name.trim()) {
-      setSnack({ msg: 'Le nom est obligatoire.', sev: 'error' });
-      return;
+    setMembers([]);
+    setStats(null);
+    if (activeProject?.id) {
+      void loadData();
     }
-    setSaving(true);
+  }, [activeProject?.id, loadData]);
+
+  const isOwner = useMemo(() => {
+    const owner = members.find((member) => member.role === 'OWNER');
+    const currentMember = members.find((member) => member.userId === user?.id);
+    return user?.role === 'ROLE_ADMIN'
+      || (user?.id != null && owner?.userId === user.id)
+      || currentMember?.role === 'ADMIN';
+  }, [members, user?.id, user?.role]);
+
+  const filteredMembers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return members.filter((member) => {
+      const identity = `${member.email} ${member.nom ?? ''} ${member.prenom ?? ''}`.toLowerCase();
+      const matchesSearch = !query || identity.includes(query);
+      const matchesRole = roleFilter === 'ALL' || member.role === roleFilter;
+      const matchesStatus = statusFilter === 'ALL' || member.status === statusFilter;
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [members, roleFilter, searchQuery, statusFilter]);
+
+  const handleMenuOpen = (event: MouseEvent<HTMLElement>, member: TeamMember) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedMember(member);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedMember(null);
+  };
+
+  const handleResendInvitation = async (member: TeamMember) => {
+    if (!activeProject?.id) return;
     try {
-      if (editTeam) {
-        await updateTeam(editTeam.id, { name: name.trim(), description: description.trim() || undefined });
-        setSnack({ msg: 'Équipe mise à jour.', sev: 'success' });
-      } else {
-        if (!managerId) {
-          setSnack({ msg: 'Choisissez un manager.', sev: 'error' });
-          setSaving(false);
-          return;
-        }
-        await createTeam({ name: name.trim(), description: description.trim() || undefined, managerId });
-        setSnack({ msg: 'Équipe créée.', sev: 'success' });
-      }
-      setDialogOpen(false);
-      load();
-    } catch (e: unknown) {
-      const msg = e && typeof e === 'object' && 'response' in e
-        ? (e as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
-      setSnack({ msg: msg ?? 'Erreur.', sev: 'error' });
-    } finally {
-      setSaving(false);
+      await resendInvitation(activeProject.id, member.id);
+      notify('Invitation renvoyee', 'success');
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Impossible de renvoyer l invitation.', 'error');
     }
   };
 
-  const handleDelete = async (t: TeamListItem) => {
-    if (!window.confirm(`Supprimer l’équipe « ${t.name} » ?`)) return;
+  const handleChangeRole = async (role: MemberRole) => {
+    if (!activeProject?.id || !selectedMember) return;
     try {
-      await deleteTeam(t.id);
-      setSnack({ msg: 'Équipe supprimée.', sev: 'success' });
-      load();
-    } catch (e: unknown) {
-      const msg = e && typeof e === 'object' && 'response' in e
-        ? (e as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
-      setSnack({ msg: msg ?? 'Suppression impossible.', sev: 'error' });
+      await updateMemberRole(activeProject.id, selectedMember.id, role);
+      notify('Role mis a jour', 'success');
+      await loadData();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Impossible de modifier le role.', 'error');
     }
   };
+
+  const handleRemoveMember = async () => {
+    if (!activeProject?.id || !selectedMember) return;
+    try {
+      await removeMember(activeProject.id, selectedMember.id);
+      notify('Membre retire du projet', 'success');
+      handleMenuClose();
+      await loadData();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Impossible de retirer ce membre.', 'error');
+    }
+  };
+
+  const handleRoleFilter = (event: SelectChangeEvent) => {
+    setRoleFilter(event.target.value as MemberRole | 'ALL');
+  };
+
+  const handleStatusFilter = (event: SelectChangeEvent) => {
+    setStatusFilter(event.target.value as MemberStatus | 'ALL');
+  };
+
+  if (!activeProject) {
+    return (
+      <Box sx={{ mx: { xs: -2, md: -3 }, mt: { xs: -2, md: -3 }, p: { xs: 2, md: 4, xl: 6 }, bgcolor: '#F7F8F9', minHeight: 'calc(100vh - 64px)' }}>
+        <Alert severity="info" sx={{ mt: 4 }}>
+          Selectionnez un projet dans le menu en haut pour afficher son equipe.
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 3 }}>
-        <Typography variant="h5" fontWeight={700}>Équipes</Typography>
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          <TextField
-            size="small"
-            placeholder="Rechercher par nom…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            sx={{ minWidth: 260 }}
-          />
-          {canManage && (
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={openCreate}
-              disabled={managerCandidates.length === 0}
-              title={managerCandidates.length === 0 ? 'Aucun utilisateur ADMIN ou MANAGER disponible comme manager' : ''}
-            >
-              Nouvelle équipe
-            </Button>
+    <Box sx={{ mx: { xs: -2, md: -3 }, mt: { xs: -2, md: -3 }, bgcolor: '#F7F8F9', minHeight: 'calc(100vh - 64px)' }}>
+      <Box sx={{ maxWidth: 1500, mx: 'auto', width: '100%', px: { xs: 2, md: 4, xl: 6 }, py: 3 }}>
+      <Box sx={{ mb: 3 }}>
+        <PageHeader
+          icon={<GroupIcon />}
+          title="Équipe"
+          subtitle={`Membres et rôles du projet ${activeProject.name}`}
+          disablePadding
+          action={isOwner && (
+          <Button
+            variant="contained"
+            startIcon={<PersonAddIcon />}
+            sx={{ bgcolor: '#0052CC', '&:hover': { bgcolor: '#0747A6' } }}
+            onClick={() => setInviteModalOpen(true)}
+          >
+            Inviter un membre
+          </Button>
           )}
-        </Box>
+        />
       </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
-      ) : filtered.length === 0 ? (
-        <Paper sx={{ p: 4, textAlign: 'center' }} elevation={0}>
-          <Typography color="text.secondary">Aucune équipe.</Typography>
+      <TeamStatsCards stats={stats} loading={loading} />
+
+      <Paper elevation={0} sx={{ p: 2, mb: 2, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', border: '1px solid #DFE1E6' }}>
+        <TextField
+          size="small"
+          placeholder="Rechercher un membre..."
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          sx={{ width: 280 }}
+        />
+        <FormControl size="small" sx={{ width: 180 }}>
+          <InputLabel>Role</InputLabel>
+          <Select value={roleFilter} label="Role" onChange={handleRoleFilter}>
+            {(Object.keys(roleLabels) as Array<MemberRole | 'ALL'>).map((role) => (
+              <MenuItem key={role} value={role}>{roleLabels[role]}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ width: 180 }}>
+          <InputLabel>Statut</InputLabel>
+          <Select value={statusFilter} label="Statut" onChange={handleStatusFilter}>
+            {(Object.keys(statusLabels) as Array<MemberStatus | 'ALL'>).map((status) => (
+              <MenuItem key={status} value={status}>{statusLabels[status]}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
+          <IconButton
+            onClick={() => setViewMode('table')}
+            sx={viewMode === 'table' ? { bgcolor: '#E9F2FF', color: '#0052CC' } : undefined}
+          >
+            <ViewListIcon />
+          </IconButton>
+          <IconButton
+            onClick={() => setViewMode('grid')}
+            sx={viewMode === 'grid' ? { bgcolor: '#E9F2FF', color: '#0052CC' } : undefined}
+          >
+            <GridViewIcon />
+          </IconButton>
+        </Box>
+      </Paper>
+
+      {!loading && filteredMembers.length === 0 ? (
+        <Paper elevation={0} sx={{ textAlign: 'center', py: 6, border: '1px solid #DFE1E6', borderRadius: 2 }}>
+          <PeopleOutlineIcon sx={{ fontSize: 64, color: '#DFE1E6', mb: 2 }} />
+          <Typography color="text.secondary">Aucun membre ne correspond aux filtres selectionnes.</Typography>
+          {isOwner && (
+            <Button variant="outlined" sx={{ mt: 2 }} onClick={() => setInviteModalOpen(true)}>
+              Inviter le premier membre
+            </Button>
+          )}
         </Paper>
+      ) : viewMode === 'table' ? (
+        <MembersTable
+          members={filteredMembers}
+          loading={loading}
+          isOwner={isOwner}
+          onMenuOpen={handleMenuOpen}
+          onResendInvitation={handleResendInvitation}
+        />
       ) : (
-        <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'grey.50' }}>
-                <TableCell>Nom</TableCell>
-                <TableCell sx={{ maxWidth: 280 }}>Description</TableCell>
-                <TableCell>Manager</TableCell>
-                <TableCell align="center">Membres</TableCell>
-                <TableCell>Créée le</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filtered.map((t) => (
-                <TableRow key={t.id} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/teams/${t.id}`)}>
-                  <TableCell onClick={(e) => e.stopPropagation()}>{t.name}</TableCell>
-                  <TableCell
-                    sx={{ maxWidth: 280, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                    title={t.description ?? ''}
-                  >
-                    {t.description || '—'}
-                  </TableCell>
-                  <TableCell>{t.managerName}</TableCell>
-                  <TableCell align="center">{t.memberCount}</TableCell>
-                  <TableCell>{formatDate(t.createdAt)}</TableCell>
-                  <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-                    <Tooltip title="Voir">
-                      <IconButton size="small" onClick={() => navigate(`/teams/${t.id}`)}><Visibility fontSize="small" /></IconButton>
-                    </Tooltip>
-                    {canEditTeam(t) && (
-                      <>
-                        <Tooltip title="Modifier">
-                          <IconButton size="small" onClick={() => openEdit(t)}><Edit fontSize="small" /></IconButton>
-                        </Tooltip>
-                        <Tooltip title="Supprimer">
-                          <IconButton size="small" color="error" onClick={() => handleDelete(t)}><Delete fontSize="small" /></IconButton>
-                        </Tooltip>
-                      </>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <MembersGrid
+          members={filteredMembers}
+          loading={loading}
+          isOwner={isOwner}
+          onMenuOpen={handleMenuOpen}
+        />
       )}
 
-      <Dialog open={dialogOpen} onClose={() => !saving && setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{editTeam ? 'Modifier l’équipe' : 'Nouvelle équipe'}</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-          <TextField label="Nom" value={name} onChange={(e) => setName(e.target.value)} required fullWidth />
-          <TextField label="Description" value={description} onChange={(e) => setDescription(e.target.value)} multiline minRows={2} fullWidth />
-          {!editTeam && (
-            <>
-              {managerCandidates.length === 0 ? (
-                <Alert severity="warning">Aucun utilisateur avec le rôle ADMIN ou MANAGER n’est disponible pour être manager.</Alert>
-              ) : (
-                <TextField select label="Manager" value={managerId || ''} onChange={(e) => setManagerId(Number(e.target.value))} fullWidth required>
-                  {managerCandidates.map((u) => (
-                    <MenuItem key={u.id} value={u.id}>
-                      {u.firstName} {u.lastName} — {u.role.replace('ROLE_', '')} ({u.email})
-                    </MenuItem>
-                  ))}
-                </TextField>
-              )}
-            </>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDialogOpen(false)} disabled={saving}>Annuler</Button>
-          <Button
-            variant="contained"
-            onClick={saveTeam}
-            disabled={saving || (!editTeam && managerCandidates.length === 0)}
-          >
-            {editTeam ? 'Enregistrer' : 'Créer'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <MemberActionMenu
+        anchorEl={anchorEl}
+        member={selectedMember}
+        onClose={handleMenuClose}
+        onChangeRole={handleChangeRole}
+        onRemove={handleRemoveMember}
+      />
 
-      <Snackbar open={!!snack} autoHideDuration={4000} onClose={() => setSnack(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
-        {snack ? <Alert severity={snack.sev} onClose={() => setSnack(null)} sx={{ width: '100%' }}>{snack.msg}</Alert> : undefined}
+      <InviteModal
+        open={inviteModalOpen}
+        projectId={activeProject.id}
+        onClose={() => setInviteModalOpen(false)}
+        onSuccess={() => {
+          setInviteModalOpen(false);
+          notify('Invitation envoyee avec succes', 'success');
+          void loadData();
+        }}
+      />
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar((current) => ({ ...current, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          severity={snackbar.severity}
+          onClose={() => setSnackbar((current) => ({ ...current, open: false }))}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
       </Snackbar>
+      </Box>
     </Box>
   );
 };

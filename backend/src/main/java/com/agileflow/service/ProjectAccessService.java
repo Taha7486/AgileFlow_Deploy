@@ -1,6 +1,7 @@
 package com.agileflow.service;
 
 import com.agileflow.entity.Project;
+import com.agileflow.entity.ProjectMember;
 import com.agileflow.entity.User;
 import com.agileflow.exception.ForbiddenOperationException;
 import com.agileflow.exception.ResourceNotFoundException;
@@ -41,6 +42,16 @@ public class ProjectAccessService {
     }
 
     @Transactional(readOnly = true)
+    public ProjectMember.ProjectRole getProjectRole(User user, Project project) {
+        if (isPlatformAdmin(user) || isProjectOwner(user, project)) {
+            return ProjectMember.ProjectRole.ADMIN;
+        }
+        return projectMemberRepository.findByProject_IdAndUser_Id(project.getId(), user.getId())
+                .map(ProjectMember::getRole)
+                .orElse(null);
+    }
+
+    @Transactional(readOnly = true)
     public boolean hasProjectAccess(User user, Project project) {
         if (isPlatformAdmin(user)) {
             return true;
@@ -50,7 +61,24 @@ public class ProjectAccessService {
 
     @Transactional(readOnly = true)
     public boolean canManageProject(User user, Project project) {
-        return isPlatformAdmin(user) || isProjectOwner(user, project);
+        if (isPlatformAdmin(user) || isProjectOwner(user, project)) {
+            return true;
+        }
+        return projectMemberRepository.findByProject_IdAndUser_Id(project.getId(), user.getId())
+                .map(ProjectMember::getRole)
+                .filter(role -> role == ProjectMember.ProjectRole.ADMIN)
+                .isPresent();
+    }
+
+    @Transactional(readOnly = true)
+    public boolean canEditProjectContent(User user, Project project) {
+        if (canManageProject(user, project)) {
+            return true;
+        }
+        return projectMemberRepository.findByProject_IdAndUser_Id(project.getId(), user.getId())
+                .map(ProjectMember::getRole)
+                .map(role -> role == null || role == ProjectMember.ProjectRole.DEVELOPER)
+                .orElse(false);
     }
 
     @Transactional(readOnly = true)
@@ -67,7 +95,13 @@ public class ProjectAccessService {
 
     public void assertCanManageProject(User user, Project project) {
         if (!canManageProject(user, project)) {
-            throw new ForbiddenOperationException("Seul le proprietaire du projet peut effectuer cette action.");
+            throw new ForbiddenOperationException("Seul le proprietaire ou un admin du projet peut effectuer cette action.");
+        }
+    }
+
+    public void assertCanEditProjectContent(User user, Project project) {
+        if (!canEditProjectContent(user, project)) {
+            throw new ForbiddenOperationException("Vous n'avez pas les droits pour modifier le contenu de ce projet.");
         }
     }
 }

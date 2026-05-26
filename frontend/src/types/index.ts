@@ -1,9 +1,10 @@
-export type Role = 'ROLE_ADMIN' | 'ROLE_MANAGER' | 'ROLE_DEVELOPER';
+export type Role = 'ROLE_ADMIN' | 'ROLE_DEVELOPER';
 export type ProjectStatus = 'ACTIF' | 'ARCHIVE' | 'TERMINE';
 export type StoryPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type TaskStatut = 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
 export type TaskPriorite = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-export type AnalyticsPeriod = 'WEEK' | 'MONTH' | 'SPRINT';
+export type TaskIssueType = 'EPIC' | 'TASK' | 'STORY' | 'FEATURE' | 'BUG';
+export type AnalyticsPeriod = 'WEEK' | 'MONTH';
 export type DiagramType =
   | 'FLOWCHART'
   | 'PROCESS'
@@ -150,12 +151,28 @@ export interface ProjectListItem {
   memberCount: number;
 }
 
+export type Project = ProjectListItem;
+
+export interface UserSearchResult {
+  id: number;
+  nom: string;
+  prenom: string;
+  email: string;
+}
+
+export interface InvitationResult {
+  email: string;
+  status: 'ADDED' | 'INVITED' | 'ERROR';
+  message: string;
+}
+
 export interface ProjectMember {
   userId: number;
   email: string;
   firstName: string;
   lastName: string;
   role: string;
+  projectRole?: string;
   owner: boolean;
   joinedAt: string | null;
 }
@@ -175,6 +192,7 @@ export interface ProjectInvitation {
   inviterLastName: string;
   invitedEmail: string;
   invitedUserId: number | null;
+  role?: string;
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
   createdAt: string;
   expiresAt: string;
@@ -298,6 +316,7 @@ export interface TaskItem {
   id: number;
   titre: string;
   description: string | null;
+  type?: TaskIssueType;
   statut: TaskStatut;
   priorite: TaskPriorite;
   isUrgent: boolean;
@@ -323,8 +342,10 @@ export interface CreateTaskPayload {
   titre: string;
   description?: string;
   priorite: TaskPriorite;
+  type?: TaskIssueType;
   assignedToId?: number | null;
   sprintId?: number | null;
+  projectId?: number | null;
   storyId?: number | null;
   dateEcheance?: string | null;
   labels?: string[];
@@ -542,3 +563,75 @@ export interface DiagramUpdateMessage {
   userColor: string;
   payload: unknown;
 }
+
+export type {
+  BulkActionRequest,
+  GroupByOption,
+  PlanningFilters,
+  PlanningGroup,
+  PlanningPageResponse,
+  PlanningStats,
+  PlanningTask,
+  ProjectSummary,
+  SavedView,
+  SortByOption,
+  StorySummary,
+  TaskIssueType as PlanningTaskIssueType,
+  UserSummary,
+} from './planning.types';
+
+export type {
+  KanbanBoardData,
+  KanbanColumn,
+  KanbanFilters,
+  KanbanPriorite,
+  KanbanProject,
+  KanbanSprint,
+  KanbanStats,
+  KanbanStatut,
+  KanbanStory,
+  KanbanTask,
+  KanbanTypeTache,
+  KanbanUpdateMessage,
+  KanbanUser,
+  QuickCreateRequest,
+} from './kanban.types';
+
+export type {
+  TimelineData,
+  TimelineEpic,
+  TimelineFilters,
+  TimelinePeriode,
+  TimelineProject,
+  TimelineRow,
+  TimelineSprint,
+  TimelineStatut,
+  TimelineStory,
+  TimelineTask,
+  TimelineType,
+  TimelineUser,
+  TimelineVue,
+} from './timeline.types';
+
+export type {
+  InviteMemberPayload,
+  MemberRole,
+  MemberStatus,
+  TeamMember as ProjectTeamMember,
+  TeamStats,
+} from './team';
+
+export type {
+  ActivityGroup,
+  ActivityItem,
+  BarDataPoint,
+  DonutDataPoint,
+  EpicProgress,
+  KpiStats,
+  PriorityBreakdown,
+  ProjectSummaryData,
+  StatusOverview,
+  StatusSegment,
+  TypesOfWork,
+  WorkloadItem,
+} from './projectSummary.types';

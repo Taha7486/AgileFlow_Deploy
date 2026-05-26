@@ -24,7 +24,34 @@ public class Task {
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private Priorite priorite = Priorite.MEDIUM;
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private Type type = Type.TASK;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type_tache")
+    @Builder.Default
+    private TypeTache typeTache = TypeTache.TASK;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_task_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Task parentTask;
+
+    @OneToMany(mappedBy = "parentTask", cascade = CascadeType.ALL)
+    @OrderBy("dateCreation ASC")
+    @Builder.Default
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private java.util.List<Task> sousTaskes = new java.util.ArrayList<>();
+
     private LocalDateTime dateEcheance;
+    @Column(name = "date_debut")
+    private LocalDateTime dateDebut;
+    @Builder.Default
+    private LocalDateTime dateCreation = LocalDateTime.now();
+    private LocalDateTime dateMiseAJour;
     @Builder.Default
     private boolean isUrgent = false;
     @Builder.Default
@@ -36,6 +63,17 @@ public class Task {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private User assignedTo;
+    @ManyToOne
+    @JoinColumn(name = "assigned_by")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private User assignedBy;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Project project;
+
     @ManyToOne
     @JoinColumn(name = "sprint_id")
     @ToString.Exclude
@@ -65,5 +103,40 @@ public class Task {
     }
     public enum Priorite {
         LOW, MEDIUM, HIGH, CRITICAL
+    }
+    public enum Type {
+        EPIC, TASK, STORY, FEATURE, BUG
+    }
+
+    @PrePersist
+    void onCreate() {
+        if (dateCreation == null) {
+            dateCreation = LocalDateTime.now();
+        }
+        if (type == null) {
+            type = Type.TASK;
+        }
+        if (typeTache == null || typeTache == TypeTache.TASK) {
+            syncTypeTache();
+        }
+        dateMiseAJour = dateCreation;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        dateMiseAJour = LocalDateTime.now();
+        // On ne synchronise pas forcément ici car typeTache peut être SUBTASK 
+        // ce qui n'existe pas dans l'ancien enum Type.
+    }
+
+    private void syncTypeTache() {
+        if (this.type == null) return;
+        switch (this.type) {
+            case EPIC -> this.typeTache = TypeTache.EPIC;
+            case STORY -> this.typeTache = TypeTache.STORY;
+            case FEATURE -> this.typeTache = TypeTache.FEATURE;
+            case BUG -> this.typeTache = TypeTache.BUG;
+            default -> this.typeTache = TypeTache.TASK;
+        }
     }
 }

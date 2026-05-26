@@ -10,7 +10,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { Assignment, Group, ManageAccounts, Timeline } from '@mui/icons-material';
+import { Assignment, Group, ManageAccounts } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { fetchDashboardStats } from '../api/dashboardApi';
 import { fetchProjects } from '../api/projectsApi';
@@ -116,14 +116,6 @@ const DashboardPage = () => {
             Structure les equipes et leur responsabilite.
           </Typography>
           <Button sx={{ mt: 2 }} onClick={() => navigate('/teams')}>Ouvrir</Button>
-        </Paper>
-        <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'grey.200', flex: 1 }}>
-          <Timeline color="primary" />
-          <Typography variant="h6" fontWeight={700} sx={{ mt: 1 }}>Sprints</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Visualise les sprints actifs et leur charge.
-          </Typography>
-          <Button sx={{ mt: 2 }} onClick={() => navigate('/sprints')}>Ouvrir</Button>
         </Paper>
       </Stack>
 

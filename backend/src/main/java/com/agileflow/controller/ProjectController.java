@@ -58,6 +58,12 @@ public class ProjectController {
         return projectMemberService.listMembers(id);
     }
 
+    @GetMapping("/{id}/members/stats")
+    @PreAuthorize("isAuthenticated()")
+    public ProjectMemberStatsDTO memberStats(@PathVariable Long id) {
+        return projectMemberService.stats(id);
+    }
+
     @PostMapping("/{id}/members/invite")
     @PreAuthorize("isAuthenticated()")
     public InviteProjectMemberResultDTO inviteMember(@PathVariable Long id, @RequestBody InviteProjectMemberRequest request) {
@@ -68,6 +74,23 @@ public class ProjectController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> removeMember(@PathVariable Long id, @PathVariable Long userId) {
         projectMemberService.removeMember(id, userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/members/{userId}/role")
+    @PreAuthorize("isAuthenticated()")
+    public ProjectMemberDTO updateMemberRole(
+            @PathVariable Long id,
+            @PathVariable Long userId,
+            @RequestBody UpdateProjectMemberRoleRequest request
+    ) {
+        return projectMemberService.updateRole(id, userId, request);
+    }
+
+    @PostMapping("/{id}/members/{invitationId}/resend-invitation")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> resendInvitation(@PathVariable Long id, @PathVariable Long invitationId) {
+        projectMemberService.resendInvitation(id, invitationId);
         return ResponseEntity.noContent().build();
     }
 

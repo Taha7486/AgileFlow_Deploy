@@ -16,8 +16,8 @@ vi.mock('../../context/AuthContext', () => ({
   useAuth: () => ({
     user: {
       id: 1,
-      email: 'manager@agileflow.dev',
-      role: 'ROLE_MANAGER',
+      email: 'owner@agileflow.dev',
+      role: 'ROLE_DEVELOPER',
       firstName: 'Sara',
       lastName: 'Manager',
     },
@@ -48,28 +48,10 @@ vi.mock('../../api/backlogApi', () => ({
   createUserStory: vi.fn(),
   updateUserStory: vi.fn(),
   deleteUserStory: vi.fn(),
-  assignStoryToSprint: vi.fn(),
-  removeStoryFromSprint: vi.fn(),
 }));
 
 vi.mock('../../api/tasksApi', () => ({
   fetchTasksByProject: vi.fn().mockResolvedValue([]),
-}));
-
-vi.mock('../../api/sprintsApi', () => ({
-  fetchSprintsByProject: vi.fn().mockResolvedValue([
-    {
-      id: 1,
-      nom: 'Sprint 1',
-      description: 'Initial',
-      dateDebut: '2026-04-24',
-      dateFin: '2026-05-08',
-      capacitePoints: 20,
-      pointsUtilises: 0,
-      statut: 'PLANIFIE',
-      projetId: 12,
-    },
-  ]),
 }));
 
 describe('BacklogPage', () => {

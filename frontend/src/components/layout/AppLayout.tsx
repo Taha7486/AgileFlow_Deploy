@@ -18,7 +18,6 @@ import {
   Typography,
 } from '@mui/material';
 import {
-  Assignment,
   AccountTree,
   ChevronLeft,
   Dashboard,
@@ -27,10 +26,9 @@ import {
   Insights,
   ManageAccounts,
   Menu as MenuIcon,
-  Timeline,
-  QueryStats,
-  ViewKanban,
   ViewColumn,
+  ViewList,
+  Timeline as TimelineIcon,
   ChatBubbleOutline,
   NotificationsOutlined,
 } from '@mui/icons-material';
@@ -40,21 +38,19 @@ import ChatPanel from '../chat/ChatPanel';
 import VisibilityStatusControl from '../VisibilityStatusControl';
 import NotificationBell from '../notifications/NotificationBell';
 import ProfileMenuButton from '../profile/ProfileMenuButton';
+import ProjectSelector from './ProjectSelector';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useChat } from '../../hooks/useChat';
+import { useActiveProjectStore } from '../../store/activeProjectStore';
 
 const DRAWER_WIDTH = 250;
 
 const NAV_ITEMS = [
-  { label: 'Tableau de bord', path: '/dashboard', icon: <Dashboard /> },
-  { label: 'Analytics', path: '/analytics', icon: <Insights /> },
-  { label: 'Stats', path: '/stats', icon: <QueryStats /> },
   { label: 'DiagramFlow', path: '/diagrams', icon: <AccountTree /> },
-  { label: 'Projets', path: '/projects', icon: <Assignment /> },
-  { label: 'Planification', path: '/backlog', icon: <ViewKanban /> },
+  { label: 'Planification', path: '/planning', icon: <ViewList /> },
   { label: 'Kanban', path: '/kanban', icon: <ViewColumn /> },
+  { label: 'Chronologie', path: '/timeline', icon: <TimelineIcon /> },
   { label: 'Equipes', path: '/teams', icon: <Group /> },
-  { label: 'Sprints', path: '/sprints', icon: <Timeline /> },
 ];
 
 const ADMIN_NAV_ITEMS = [
@@ -67,7 +63,6 @@ const ADMIN_NAV_ITEMS = [
 
 const ROLE_LABELS: Record<string, { label: string; color: 'default' | 'primary' | 'secondary' | 'error' | 'warning' | 'info' | 'success' }> = {
   ROLE_ADMIN: { label: 'Admin', color: 'error' },
-  ROLE_MANAGER: { label: 'Manager', color: 'warning' },
   ROLE_DEVELOPER: { label: 'Dev', color: 'info' },
 };
 
@@ -77,10 +72,17 @@ const AppLayout = () => {
   const { user } = useAuth();
   const { connectionState } = useWebSocket();
   const { totalUnreadCount } = useChat({ isMonitor: true, projectNames: {}, contactNames: {} });
+  const activeProject = useActiveProjectStore((state) => state.activeProject);
   const navigate = useNavigate();
   const location = useLocation();
 
   const roleInfo = ROLE_LABELS[user?.role ?? ''] ?? { label: user?.role ?? '', color: 'default' };
+  const navItems = activeProject
+    ? [
+        { label: 'Resume', path: `/projects/${activeProject.id}/summary`, icon: <Dashboard /> },
+        ...NAV_ITEMS,
+      ]
+    : NAV_ITEMS;
 
   return (
     <Box sx={{ display: 'flex', height: '100vh' }}>
@@ -93,6 +95,8 @@ const AppLayout = () => {
             <Typography variant="h6" fontWeight={800} color="primary.main" noWrap>
               AgileFlow
             </Typography>
+            <Divider orientation="vertical" flexItem sx={{ mx: 1, display: { xs: 'none', sm: 'block' } }} />
+            <ProjectSelector />
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1.5 }, flexShrink: 0 }}>
@@ -143,10 +147,10 @@ const AppLayout = () => {
         <Divider sx={{ borderColor: 'grey.700', mb: 1 }} />
 
         <List dense>
-          {(user?.role === 'ROLE_ADMIN' ? ADMIN_NAV_ITEMS : NAV_ITEMS).map(({ label, path, icon }) => {
+          {(user?.role === 'ROLE_ADMIN' ? ADMIN_NAV_ITEMS : navItems).map(({ label, path, icon }) => {
             const active = path === '/dashboard'
-              ? location.pathname === path
-              : location.pathname === path || location.pathname.startsWith(`${path}/`);
+                ? location.pathname === path
+                : location.pathname === path || location.pathname.startsWith(`${path}/`);
             return (
               <ListItem key={path} disablePadding sx={{ display: 'block' }}>
                 <Tooltip title={!open ? label : ''} placement="right">
@@ -175,7 +179,7 @@ const AppLayout = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          bgcolor: '#f8fafc',
+          bgcolor: '#F7F8F9',
           overflow: 'auto',
           minWidth: 0,
         }}

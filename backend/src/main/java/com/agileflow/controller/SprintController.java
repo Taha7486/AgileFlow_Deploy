@@ -24,32 +24,32 @@ public class SprintController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_MANAGER')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<SprintDTO> createSprint(@RequestBody SprintDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(sprintService.createSprint(dto));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_MANAGER')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public SprintDTO updateSprint(@PathVariable Long id, @RequestBody SprintDTO dto) {
         return sprintService.updateSprint(id, dto);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_MANAGER')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<Void> deleteSprint(@PathVariable Long id) {
         sprintService.deleteSprint(id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/demarrer")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_MANAGER')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public SprintDTO startSprint(@PathVariable Long id) {
         return sprintService.startSprint(id);
     }
 
     @PostMapping("/{id}/terminer")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_MANAGER')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public SprintDTO finishSprint(@PathVariable Long id) {
         return sprintService.finishSprint(id);
     }

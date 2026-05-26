@@ -11,6 +11,7 @@ import com.agileflow.exception.BadRequestException;
 import com.agileflow.exception.ResourceNotFoundException;
 import com.agileflow.repository.ActivityLogRepository;
 import com.agileflow.repository.SprintRepository;
+import com.agileflow.repository.TaskRepository;
 import com.agileflow.repository.UserRepository;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
@@ -39,6 +40,7 @@ public class AnalyticsService {
     private final ActivityLogRepository activityLogRepository;
     private final UserRepository userRepository;
     private final SprintRepository sprintRepository;
+    private final TaskRepository taskRepository;
 
     private User currentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -59,7 +61,8 @@ public class AnalyticsService {
         List<AnalyticsMemberStatsDTO> memberStats = memberStats(range, scope);
         List<ActivityHeatmapDTO> heatmap = heatmap(range, scope);
         List<AnalyticsTrendDTO> trend = trend(range, scope);
-        long completedTasks = trend.stream().mapToLong(AnalyticsTrendDTO::completedTasks).sum();
+        long completedTasks = taskRepository.countCompletedForAnalytics(
+                range.startDate().atStartOfDay(), range.endDate().plusDays(1).atStartOfDay(), range.sprintId(), scope.managerId(), scope.actorId());
 
         return new AnalyticsDTO(
                 periodOrDefault(period).name(),
@@ -110,20 +113,39 @@ public class AnalyticsService {
     }
 
     private List<AnalyticsMemberStatsDTO> memberStats(DateRange range, Scope scope) {
-        return activityLogRepository.aggregateByMember(
+        Map<Long, AnalyticsMemberStatsDTO> byMember = new HashMap<>();
+        activityLogRepository.aggregateByMember(
                         range.startDate(), range.endDate(), range.sprintId(), scope.managerId(), scope.actorId())
                 .stream()
-                .map(row -> {
+                .forEach(row -> {
                     String fullName = String.valueOf(row[1]).trim();
                     String fallbackEmail = String.valueOf(row[2]);
-                    return new AnalyticsMemberStatsDTO(
+                    byMember.put((Long) row[0], new AnalyticsMemberStatsDTO(
                             (Long) row[0],
                             fullName.isBlank() ? fallbackEmail : fullName,
                             String.valueOf(row[3]),
                             number(row[4]),
                             number(row[5])
-                    );
-                })
+                    ));
+                });
+
+        for (Object[] row : taskRepository.aggregateCompletedForAnalyticsByMember(
+                range.startDate().atStartOfDay(), range.endDate().plusDays(1).atStartOfDay(), range.sprintId(), scope.managerId(), scope.actorId())) {
+            Long userId = (Long) row[0];
+            AnalyticsMemberStatsDTO existing = byMember.get(userId);
+            String fullName = String.valueOf(row[1]).trim();
+            String fallbackEmail = String.valueOf(row[2]);
+            byMember.put(userId, new AnalyticsMemberStatsDTO(
+                    userId,
+                    existing != null ? existing.memberName() : (fullName.isBlank() ? fallbackEmail : fullName),
+                    existing != null ? existing.role() : String.valueOf(row[3]),
+                    existing != null ? existing.activityCount() : 0,
+                    number(row[4])
+            ));
+        }
+
+        return byMember.values().stream()
+                .sorted((left, right) -> Long.compare(right.completedTasks() + right.activityCount(), left.completedTasks() + left.activityCount()))
                 .toList();
     }
 
@@ -149,6 +171,11 @@ public class AnalyticsService {
                 range.startDate(), range.endDate(), range.sprintId(), scope.managerId(), scope.actorId())) {
             values.put((LocalDate) row[0], row);
         }
+        Map<LocalDate, Long> completedByDate = new HashMap<>();
+        for (Object[] row : taskRepository.aggregateCompletedForAnalyticsByDate(
+                range.startDate().atStartOfDay(), range.endDate().plusDays(1).atStartOfDay(), range.sprintId(), scope.managerId(), scope.actorId())) {
+            completedByDate.put((LocalDate) row[0], number(row[1]));
+        }
 
         List<AnalyticsTrendDTO> trend = new ArrayList<>();
         LocalDate cursor = range.startDate();
@@ -157,7 +184,7 @@ public class AnalyticsService {
             trend.add(new AnalyticsTrendDTO(
                     cursor.toString(),
                     row != null ? number(row[1]) : 0,
-                    row != null ? number(row[2]) : 0
+                    completedByDate.getOrDefault(cursor, 0L)
             ));
             cursor = cursor.plusDays(1);
         }
@@ -189,11 +216,9 @@ public class AnalyticsService {
     }
 
     private Scope resolveScope(User actor) {
-        return switch (actor.getRole()) {
-            case ROLE_ADMIN -> new Scope(null, null);
-            case ROLE_MANAGER -> new Scope(actor.getId(), null);
-            case ROLE_DEVELOPER -> new Scope(null, actor.getId());
-        };
+        return actor.getRole() == User.Role.ROLE_ADMIN
+                ? new Scope(null, null)
+                : new Scope(null, actor.getId());
     }
 
     private long number(Object value) {

@@ -26,7 +26,6 @@ describe('ProjectCard', () => {
     expect(screen.getByText('Refonte du module projet')).toBeInTheDocument();
     expect(screen.getByText('Actif')).toBeInTheDocument();
     expect(screen.getByText('Proprietaire: Sara Manager')).toBeInTheDocument();
-    expect(screen.getByText('Sprints: 3')).toBeInTheDocument();
     expect(screen.getByText('Taches: 12')).toBeInTheDocument();
   });
 });

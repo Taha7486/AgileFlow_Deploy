@@ -38,7 +38,7 @@ public class UserStoryService {
     }
 
     private boolean canManageProject(User actor, Project project) {
-        return projectAccessService.canManageProject(actor, project);
+        return projectAccessService.canEditProjectContent(actor, project);
     }
 
     private Project getProjectOrThrow(Long projectId) {

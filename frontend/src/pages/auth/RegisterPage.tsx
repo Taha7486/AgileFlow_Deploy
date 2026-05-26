@@ -19,8 +19,9 @@ import {
   Visibility,
   VisibilityOff,
 } from '@mui/icons-material';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/axiosInterceptor';
+import { validateInvitationToken } from '../../api/invitationApi';
 import { useAuth } from '../../context/AuthContext';
 import { passwordMeetsPolicy, PASSWORD_REQUIREMENTS_TEXT } from '../../utils/passwordPolicy';
 
@@ -39,12 +40,43 @@ const RegisterPage = () => {
   const [emailError, setEmailError] = useState('');
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
+  const [invitationProjectName, setInvitationProjectName] = useState('');
+  const [invitationLoading, setInvitationLoading] = useState(false);
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const invitationToken = searchParams.get('invitation');
+  const invitationEmail = searchParams.get('email');
   const { setAuth } = useAuth();
 
   useEffect(() => {
+    if (!invitationToken) return;
+
+    if (invitationEmail) {
+      setForm((current) => ({ ...current, email: invitationEmail }));
+    }
+
+    const validateInvitation = async () => {
+      setInvitationLoading(true);
+      setError('');
+      try {
+        const invitation = await validateInvitationToken(invitationToken);
+        setInvitationProjectName(invitation.projectName);
+        setForm((current) => ({ ...current, email: invitation.email }));
+        setEmailError('');
+      } catch (err: any) {
+        setError(err.response?.data?.message || "Lien d'invitation invalide ou expire.");
+      } finally {
+        setInvitationLoading(false);
+      }
+    };
+
+    void validateInvitation();
+  }, [invitationEmail, invitationToken]);
+
+  useEffect(() => {
     if (otpSent) return;
+    if (invitationToken) return;
 
     const checkEmail = async () => {
       if (!form.email) {
@@ -76,7 +108,7 @@ const RegisterPage = () => {
 
     const timer = setTimeout(checkEmail, 500);
     return () => clearTimeout(timer);
-  }, [form.email, otpSent]);
+  }, [form.email, invitationToken, otpSent]);
 
   const evaluatePassword = (pass: string) => {
     let score = 0;
@@ -141,6 +173,7 @@ const RegisterPage = () => {
         prenom: form.prenom,
         email: form.email,
         password: form.password,
+        invitationToken,
       });
       setOtpSent(true);
       setOtp('');
@@ -206,8 +239,9 @@ const RegisterPage = () => {
         onChange={handleChange}
         required
         fullWidth
+        disabled={Boolean(invitationToken)}
         error={!!emailError}
-        helperText={emailError || ''}
+        helperText={emailError || (invitationToken ? 'Adresse imposee par le lien invitation.' : '')}
         InputProps={{
           endAdornment: (
             <InputAdornment position="end">
@@ -278,7 +312,7 @@ const RegisterPage = () => {
         variant="contained"
         size="large"
         fullWidth
-        disabled={loading || checkingEmail || !!emailError || !passwordMeetsPolicy(form.password) || form.password !== form.confirm}
+        disabled={loading || invitationLoading || checkingEmail || !!emailError || !passwordMeetsPolicy(form.password) || form.password !== form.confirm}
         sx={{ mt: 1, py: 1.5 }}
       >
         {loading ? <CircularProgress size={24} color="inherit" /> : 'Envoyer le code OTP'}
@@ -352,6 +386,11 @@ const RegisterPage = () => {
         </Box>
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        {invitationProjectName && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Vous rejoignez le projet {invitationProjectName}.
+          </Alert>
+        )}
         {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
         {otpSent ? renderOtpForm() : renderRegisterForm()}

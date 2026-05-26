@@ -35,12 +35,16 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final PasswordValidator passwordValidator;
     private final EmailVerificationService emailVerificationService;
+    private final InvitationService invitationService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
         passwordValidator.assertValid(request.password());
         String email = normalizeEmail(request.email());
+        if (!isBlank(request.invitationToken())) {
+            invitationService.assertInvitationMatchesEmail(request.invitationToken(), email);
+        }
         User user = userRepository.findByEmail(email).orElse(null);
 
         if (user != null && user.isEmailVerified()) {
@@ -69,8 +73,9 @@ public class AuthService {
 
         String otp = generateOtp();
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(OTP_EXPIRATION_MINUTES);
-        user.setEmailVerificationOtpHash(passwordEncoder.encode(otp));
+            user.setEmailVerificationOtpHash(passwordEncoder.encode(otp));
         user.setEmailVerificationOtpExpiresAt(expiresAt);
+        user.setPendingInvitationTokenHash(!isBlank(request.invitationToken()) ? invitationService.hashToken(request.invitationToken()) : null);
         userRepository.save(user);
         emailVerificationService.sendVerificationCode(user, otp, expiresAt);
 
@@ -97,6 +102,10 @@ public class AuthService {
         );
 
         user.setDateDerniereConnexion(LocalDateTime.now());
+        if (!isBlank(user.getPendingInvitationTokenHash())) {
+            invitationService.appliquerInvitationHash(user.getPendingInvitationTokenHash(), user);
+            user.setPendingInvitationTokenHash(null);
+        }
         userRepository.save(user);
 
         return generateTokens(user);
@@ -448,7 +457,7 @@ public class AuthService {
         );
     }
 
-    public record RegisterRequest(String nom, String prenom, String email, String password) {}
+    public record RegisterRequest(String nom, String prenom, String email, String password, String invitationToken) {}
     public record LoginRequest(String email, String password) {}
     public record EmailVerificationRequest(String email, String otp) {}
     public record ResendVerificationRequest(String email) {}

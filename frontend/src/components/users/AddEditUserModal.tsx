@@ -43,7 +43,7 @@ const AddEditUserModal = ({ open, onClose, mode, user, onSaved, onNotify }: Prop
       setFirstName(user.firstName ?? '');
       setLastName(user.lastName ?? '');
       setEmail(user.email ?? '');
-      setRole(user.role as Role);
+      setRole(user.role === 'ROLE_ADMIN' ? 'ROLE_ADMIN' : 'ROLE_DEVELOPER');
       setActive(user.active !== false);
     } else {
       setFirstName('');

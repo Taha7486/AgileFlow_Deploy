@@ -12,8 +12,8 @@ import { formatDateTime } from '../../utils/formatDate';
 import AddMemberModal from '../../components/teams/AddMemberModal';
 
 const roleChip = (role: string) => {
-  const color = role === 'ROLE_ADMIN' ? 'error' : role === 'ROLE_MANAGER' ? 'warning' : 'info';
-  const label = role === 'ROLE_ADMIN' ? 'Admin' : role === 'ROLE_MANAGER' ? 'Manager' : 'Développeur';
+  const color = role === 'ROLE_ADMIN' ? 'error' : 'info';
+  const label = role === 'ROLE_ADMIN' ? 'Admin' : 'Developpeur';
   return <Chip label={label} color={color} size="small" />;
 };
 
@@ -58,7 +58,7 @@ const TeamDetailsPage = () => {
   const canManage = useMemo(() => {
     if (!team || !current) return false;
     if (current.role === 'ROLE_ADMIN') return true;
-    if (current.role === 'ROLE_MANAGER' && team.manager.id === current.id) return true;
+    if (team.manager.id === current.id) return true;
     return false;
   }, [team, current]);
 
@@ -123,7 +123,7 @@ const TeamDetailsPage = () => {
               {team.description || 'Aucune description.'}
             </Typography>
             <Typography variant="body2" sx={{ mt: 2 }}>
-              <strong>Manager :</strong>{' '}
+              <strong>Responsable :</strong>{' '}
               <Link to={`/users/${team.manager.id}`} style={{ fontWeight: 600 }}>
                 {team.manager.firstName} {team.manager.lastName}
               </Link>
@@ -221,3 +221,4 @@ const TeamDetailsPage = () => {
 };
 
 export default TeamDetailsPage;
+

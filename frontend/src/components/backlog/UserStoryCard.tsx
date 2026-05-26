@@ -21,10 +21,9 @@ type Props = {
   onOpen?: (story: UserStoryItem) => void;
   onEdit?: (story: UserStoryItem) => void;
   onDelete?: (story: UserStoryItem) => void;
-  onRemoveFromSprint?: (story: UserStoryItem) => void;
 };
 
-const UserStoryCard = ({ story, canManage, compact, onOpen, onEdit, onDelete, onRemoveFromSprint }: Props) => {
+const UserStoryCard = ({ story, canManage, compact, onOpen, onEdit, onDelete }: Props) => {
   const progress = storyTaskProgress(story);
 
   const content = (
@@ -48,7 +47,6 @@ const UserStoryCard = ({ story, canManage, compact, onOpen, onEdit, onDelete, on
           <Chip size="small" label={story.epicTitle} sx={{ bgcolor: story.epicColor ?? 'grey.500', color: '#fff' }} />
         )}
         {story.storyPoints != null && <Chip size="small" variant="outlined" label={`${story.storyPoints} pts`} />}
-        <Chip size="small" variant="outlined" label={story.sprintLabel || 'Backlog'} />
         {story.taskCount > 0 && (
           <Chip size="small" variant="outlined" label={`${story.completedTaskCount}/${story.taskCount} taches`} />
         )}
@@ -70,9 +68,6 @@ const UserStoryCard = ({ story, canManage, compact, onOpen, onEdit, onDelete, on
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.5 }}>
           <Button size="small" variant="outlined" onClick={(e) => { e.stopPropagation(); onEdit?.(story); }}>Modifier</Button>
           <Button size="small" color="error" onClick={(e) => { e.stopPropagation(); onDelete?.(story); }}>Supprimer</Button>
-          {story.sprintId != null && (
-            <Button size="small" onClick={(e) => { e.stopPropagation(); onRemoveFromSprint?.(story); }}>Retirer du sprint</Button>
-          )}
         </Stack>
       )}
     </>

@@ -3,16 +3,17 @@ package com.agileflow.repository;
 import com.agileflow.entity.Task;
 import com.agileflow.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public interface TaskRepository extends JpaRepository<Task, Long> {
+public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificationExecutor<Task> {
     List<Task> findByAssignedToId(Long userId);
     List<Task> findBySprintId(Long sprintId);
+    List<Task> findByParentTask_Id(Long parentTaskId);
 
     long countByStatut(Task.Statut statut);
 
@@ -25,6 +26,21 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     long countBySprint_Project_Manager_IdAndStatut(Long managerId, Task.Statut statut);
 
     List<Task> findBySprint_Project_Id(Long projectId);
+
+    @Query("""
+            SELECT DISTINCT t
+            FROM Task t
+            LEFT JOIN t.project directProject
+            LEFT JOIN t.sprint s
+            LEFT JOIN s.project sprintProject
+            LEFT JOIN t.story story
+            LEFT JOIN story.backlog backlog
+            LEFT JOIN backlog.project storyProject
+            WHERE directProject.id = :projectId
+               OR sprintProject.id = :projectId
+               OR storyProject.id = :projectId
+            """)
+    List<Task> findByAnyProjectId(@Param("projectId") Long projectId);
 
     long countByStory_Id(Long storyId);
 
@@ -142,6 +158,89 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("startDateAtStart") LocalDateTime startDateAtStart,
             @Param("endDateExclusive") LocalDateTime endDateExclusive,
             @Param("projectId") Long projectId,
+            @Param("sprintId") Long sprintId,
+            @Param("managerId") Long managerId,
+            @Param("actorId") Long actorId
+    );
+
+    @Query("""
+            SELECT COUNT(t.id)
+            FROM Task t
+            LEFT JOIN t.project directProject
+            LEFT JOIN t.sprint s
+            LEFT JOIN s.project sprintProject
+            LEFT JOIN t.story story
+            LEFT JOIN story.backlog backlog
+            LEFT JOIN backlog.project storyProject
+            LEFT JOIN t.assignedTo assignee
+            WHERE t.statut = com.agileflow.entity.Task.Statut.DONE
+              AND t.dateMiseAJour >= :startDateAtStart
+              AND t.dateMiseAJour < :endDateExclusive
+              AND (:sprintId IS NULL OR s.id = :sprintId)
+              AND (:managerId IS NULL OR directProject.manager.id = :managerId OR sprintProject.manager.id = :managerId OR storyProject.manager.id = :managerId)
+              AND (:actorId IS NULL OR assignee.id = :actorId)
+            """)
+    long countCompletedForAnalytics(
+            @Param("startDateAtStart") LocalDateTime startDateAtStart,
+            @Param("endDateExclusive") LocalDateTime endDateExclusive,
+            @Param("sprintId") Long sprintId,
+            @Param("managerId") Long managerId,
+            @Param("actorId") Long actorId
+    );
+
+    @Query("""
+            SELECT CAST(t.dateMiseAJour AS java.time.LocalDate), COUNT(t.id)
+            FROM Task t
+            LEFT JOIN t.project directProject
+            LEFT JOIN t.sprint s
+            LEFT JOIN s.project sprintProject
+            LEFT JOIN t.story story
+            LEFT JOIN story.backlog backlog
+            LEFT JOIN backlog.project storyProject
+            LEFT JOIN t.assignedTo assignee
+            WHERE t.statut = com.agileflow.entity.Task.Statut.DONE
+              AND t.dateMiseAJour >= :startDateAtStart
+              AND t.dateMiseAJour < :endDateExclusive
+              AND (:sprintId IS NULL OR s.id = :sprintId)
+              AND (:managerId IS NULL OR directProject.manager.id = :managerId OR sprintProject.manager.id = :managerId OR storyProject.manager.id = :managerId)
+              AND (:actorId IS NULL OR assignee.id = :actorId)
+            GROUP BY CAST(t.dateMiseAJour AS java.time.LocalDate)
+            ORDER BY CAST(t.dateMiseAJour AS java.time.LocalDate) ASC
+            """)
+    List<Object[]> aggregateCompletedForAnalyticsByDate(
+            @Param("startDateAtStart") LocalDateTime startDateAtStart,
+            @Param("endDateExclusive") LocalDateTime endDateExclusive,
+            @Param("sprintId") Long sprintId,
+            @Param("managerId") Long managerId,
+            @Param("actorId") Long actorId
+    );
+
+    @Query("""
+            SELECT assignee.id,
+                   CONCAT(CONCAT(COALESCE(assignee.prenom, ''), ' '), COALESCE(assignee.nom, '')),
+                   assignee.email,
+                   assignee.role,
+                   COUNT(t.id)
+            FROM Task t
+            JOIN t.assignedTo assignee
+            LEFT JOIN t.project directProject
+            LEFT JOIN t.sprint s
+            LEFT JOIN s.project sprintProject
+            LEFT JOIN t.story story
+            LEFT JOIN story.backlog backlog
+            LEFT JOIN backlog.project storyProject
+            WHERE t.statut = com.agileflow.entity.Task.Statut.DONE
+              AND t.dateMiseAJour >= :startDateAtStart
+              AND t.dateMiseAJour < :endDateExclusive
+              AND (:sprintId IS NULL OR s.id = :sprintId)
+              AND (:managerId IS NULL OR directProject.manager.id = :managerId OR sprintProject.manager.id = :managerId OR storyProject.manager.id = :managerId)
+              AND (:actorId IS NULL OR assignee.id = :actorId)
+            GROUP BY assignee.id, assignee.prenom, assignee.nom, assignee.email, assignee.role
+            ORDER BY COUNT(t.id) DESC, assignee.id ASC
+            """)
+    List<Object[]> aggregateCompletedForAnalyticsByMember(
+            @Param("startDateAtStart") LocalDateTime startDateAtStart,
+            @Param("endDateExclusive") LocalDateTime endDateExclusive,
             @Param("sprintId") Long sprintId,
             @Param("managerId") Long managerId,
             @Param("actorId") Long actorId

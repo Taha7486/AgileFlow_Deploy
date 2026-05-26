@@ -138,20 +138,6 @@ const StepInputForm = ({ projects, initialDiagram, defaultProjectId = '', saving
         />
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
           <FormControl size="small" fullWidth>
-            <InputLabel id="diagram-project-label">Projet</InputLabel>
-            <Select
-              labelId="diagram-project-label"
-              label="Projet"
-              value={projectId}
-              disabled={Boolean(initialDiagram)}
-              onChange={(event) => setProjectId(event.target.value as number | '')}
-            >
-              {projects.map((project) => (
-                <MenuItem key={project.id} value={project.id}>{project.name}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl size="small" fullWidth>
             <InputLabel id="diagram-type-label">Type</InputLabel>
             <Select
               labelId="diagram-type-label"

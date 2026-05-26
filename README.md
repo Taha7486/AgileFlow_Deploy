@@ -1,243 +1,406 @@
 # AgileFlow
-Plateforme de Collaboration et Suivi de Projets Agiles
 
-## 📋 Description du Projet
+Plateforme Agile full-stack de gestion de projets, inspiree de Jira.
 
-AgileFlow est une plateforme complète de gestion de projets Agile inspirée de Jira. Elle permet aux équipes de développement de gérer leurs projets, sprints, tâches, et collaborateurs dans un environnement collaboratif et temps réel.
+AgileFlow permet de gerer des projets, membres, invitations, taches, epics,
+planification en liste, tableau Kanban, chronologie Gantt, resume projet,
+diagrammes collaboratifs, notifications, chat et rapports administrateur.
 
-## 🏗️ Architecture du Projet
+## Stack
 
-Le projet est divisé en deux applications distinctes :
-- **Backend** : API Spring Boot 3.3.5 dans le dossier `backend/`
-- **Frontend** : Application React 18 dans le dossier `frontend/`
+### Backend
 
-## 🚀 Démarrage Rapide
-
-### Prérequis
 - Java 21
-- Node.js 18+ et npm
-- MySQL 8.0+
+- Spring Boot 3.3.5
+- Spring Security + JWT + OAuth2 Google/GitHub
+- Spring Data JPA / Hibernate
+- MySQL 8
+- Spring Mail
+- WebSocket STOMP over SockJS
 - Maven
 
-### 1. Configuration de la Base de Données
+### Frontend
 
-1. Installer et démarrer MySQL
-2. Créer une base de données :
-   ```sql
-   CREATE DATABASE agileflow_db;
-   ```
+- React 18 + TypeScript
+- Vite
+- Material UI v5
+- Zustand
+- Axios avec intercepteur JWT
+- React Router v6
+- Recharts
+- dnd-kit
+- React Flow / Mermaid
 
-### 2. Configuration du Backend (Spring Boot)
+## Structure
 
-1. Configurer les paramètres de base de données dans `src/main/resources/application.properties` :
-   ```properties
-   spring.datasource.username=votre_utilisateur
-   spring.datasource.password=votre_mot_de_passe
-   ```
+```text
+AgileFlow/
+|-- backend/       API Spring Boot
+|-- frontend/      SPA React
+|-- docs/
+|-- README.md
+`-- CONTEXT.md
+```
 
-2. Lancer l'application :
-   ```bash
-   ./mvnw spring-boot:run
-   ```
+## Prerequis
 
-   L'API sera disponible sur : http://localhost:8080
+- Java 21
+- Maven
+- Node.js 18+ et npm
+- MySQL 8
 
-### 3. Configuration du Frontend (React)
+## Configuration backend
 
-1. Naviguer dans le dossier frontend :
-   ```bash
-   cd frontend
-   ```
+Le backend tourne sur `http://localhost:8080`.
 
-2. **IMPORTANT : Installer les dépendances**
-   ```bash
-   npm install
-   ```
+Fichier principal :
 
-3. Créer le fichier `.env` a partir du template :
-   ```bash
-   cp .env.example .env
-   ```
+```text
+backend/src/main/resources/application.properties
+```
 
-4. Verifier que le fichier `.env` contient :
-   ```
-   VITE_API_URL=http://localhost:8080/api
-   VITE_WS_URL=http://localhost:8080/ws
-   ```
+Configuration locale minimale :
 
-5. Lancer le serveur de développement :
-   ```bash
-   npm run dev
-   ```
+```properties
+spring.application.name=agileflow-backend
+server.port=8080
 
-   L'application sera disponible sur : http://localhost:5173
+spring.datasource.url=jdbc:mysql://localhost:3306/agileflow_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+spring.datasource.username=root
+spring.datasource.password=
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
 
-## 🧪 Données de Test et Comptes
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.open-in-view=false
+spring.flyway.enabled=false
 
-L'application inclut un mécanisme d'initialisation manuelle pour peupler la base de données avec des données réalistes.
+jwt.secret=${JWT_SECRET:change-me-local-dev-secret}
+jwt.expiration=900000
+jwt.refresh-expiration=604800000
 
-### 🏃 Comment exécuter le script de test ?
+app.frontend-url=http://localhost:5173
+```
 
-Vous pouvez lancer l'initialisation à tout moment en utilisant le script situé dans le dossier des ressources du backend. 
+Secrets a garder hors Git :
 
-**ATTENTION : Ce script supprimera toutes les données existantes avant de recréer les données de test.**
+```env
+JWT_SECRET=une_cle_longue_et_secrete
+MAIL_USERNAME=votre_adresse_gmail
+MAIL_PASSWORD=votre_app_password_gmail
+SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID=...
+SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET=...
+SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_ID=...
+SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_SECRET=...
+```
 
-**Sur Windows :**
+Demarrage backend :
+
 ```powershell
-cd backend/src/main/resources/
+cd backend
+mvn spring-boot:run
+```
+
+Compilation backend :
+
+```powershell
+cd backend
+mvn -DskipTests compile
+```
+
+## Configuration frontend
+
+Le frontend tourne sur `http://localhost:5173`.
+
+Fichier :
+
+```text
+frontend/.env
+```
+
+Contenu minimal :
+
+```env
+VITE_API_URL=http://localhost:8080/api
+VITE_WS_URL=http://localhost:8080/ws
+```
+
+Demarrage frontend :
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Verification TypeScript sans build Vite :
+
+```powershell
+cd frontend
+npm exec tsc -- --noEmit
+```
+
+Si Vite affiche une page blanche avec une erreur MUI du type
+`styled_default is not a function`, nettoyer le cache Vite puis relancer :
+
+```powershell
+cd frontend
+Remove-Item -Recurse -Force node_modules/.vite/deps
+npm run dev
+```
+
+## Navigation actuelle
+
+Le menu non-admin est centre sur le projet actif selectionne dans le header :
+
+- Resume
+- DiagramFlow
+- Planification
+- Kanban
+- Chronologie
+- Equipes
+
+Les anciennes entrees non-admin `Tableau de bord`, `Analytics`, `Stats`,
+`Backlog` et `Projets` ne sont plus affichees dans la sidebar principale.
+
+Le selecteur de projet dans le header permet :
+
+- choisir le projet actif ;
+- creer un projet ;
+- modifier ou supprimer le projet via le menu ;
+- inviter un membre via le bouton membre place a cote du projet.
+
+## Fonctionnalites principales
+
+### Authentification
+
+- Login classique email/mot de passe.
+- JWT access token + refresh token.
+- Verification email par OTP pendant l'inscription.
+- OAuth2 Google et GitHub si les variables sont configurees.
+- Support des liens d'inscription avec token d'invitation projet.
+- Protection contre `localStorage.user` invalide pour eviter les pages blanches.
+
+### Projets et invitations
+
+- Creation, modification et suppression de projet.
+- Le createur devient proprietaire (`OWNER`) du projet.
+- Invitation par email depuis le header ou la page Equipe.
+- Si l'utilisateur existe deja, il recoit une invitation et peut rejoindre le projet.
+- Si l'utilisateur n'existe pas, il recoit un lien d'inscription avec token.
+- Les invitations recues sont visibles dans le Resume projet.
+
+### Equipe
+
+Route : `/teams`
+
+- Liste et grille des membres du projet actif.
+- Recherche et filtres par role/statut.
+- Statistiques : membres actifs, invitations en attente, taches assignees,
+  taux de completion.
+- Invitation de membre.
+- Renvoi d'invitation.
+- Modification du role projet.
+- Retrait d'un membre.
+
+### Resume projet
+
+Route : `/projects/:projectId/summary`
+
+Le Resume est la page d'accueil projet.
+
+Widgets :
+
+- message "Bonjour, ..." ;
+- invitations recues ;
+- KPIs projet ;
+- apercu des statuts ;
+- activite recente ;
+- repartition par priorite ;
+- types de travail ;
+- charge equipe ;
+- progression des epics.
+
+### Planification
+
+Route : `/planning`
+
+- Vue liste style Jira.
+- Donnees filtrees par projet actif du header.
+- Barre membres a cote de la recherche.
+- Creation de taches : Epic, Story, Tache, Fonctionnalite, Bug.
+- Creation de sous-taches.
+- Edition inline et panneau de detail centre dans la zone tableau.
+- Assignation limitee aux membres du projet.
+- Selection multiple limitee a la suppression.
+- Pas de colonne labels/actions dans la vue principale.
+- Pas de logique sprint dans l'interface actuelle.
+
+### Kanban
+
+Route : `/kanban`
+
+- Colonnes fixes : TODO, IN_PROGRESS, REVIEW, DONE.
+- Drag and drop avec dnd-kit.
+- Creation rapide de taches.
+- WebSocket sur `/topic/kanban/{projectId}`.
+- Les epics ne sont pas affichees comme cartes principales.
+- Les sous-taches ne sont pas affichees comme cartes principales.
+- Les taches rattachees a une epic affichent le contexte epic.
+
+### Chronologie
+
+Route : `/timeline`
+
+- Diagramme Gantt interactif.
+- Vues : semaines, mois, trimestres.
+- Les dates restent fixes pendant le scroll horizontal.
+- La vue semaine et le marqueur "aujourd'hui" affichent le numero du jour.
+- Les taches sans epic ne sont pas affichees.
+- Les sous-taches ne sont pas affichees.
+- La date d'echeance d'une epic ou tache parent est automatiquement au moins
+  egale a la plus grande echeance de ses enfants.
+
+### DiagramFlow
+
+Route : `/diagrams`
+
+- Liste et editeur de diagrammes.
+- Collaboration temps reel.
+- Types UML, sequence, use case, classe, activite, etc.
+- Bibliotheque de formes, texte, connexions, lifelines et cadres.
+
+### Analytics / Reports admin
+
+Route : `/analytics`
+
+- Reserve aux administrateurs plateforme.
+- Activites, taches terminees, membres actifs.
+- Les taches terminees sont calculees depuis `tasks.statut = DONE`.
+- Les taches directes du projet sont incluses, pas uniquement les taches liees
+  a un sprint.
+- Export PDF.
+
+### Notifications et chat
+
+- Notifications in-app.
+- Preferences email.
+- Chat global, projet et prive.
+- Presence temps reel.
+
+## Roles
+
+### Roles plateforme
+
+- `ROLE_ADMIN` : admin plateforme, utilisateurs, analytics/reports, logs,
+  notifications.
+- `ROLE_DEVELOPER` : utilisateur applicatif standard.
+
+### Roles projet
+
+- `OWNER` : createur/proprietaire du projet. Peut gerer projet, membres,
+  invitations et contenu.
+- `ADMIN` : admin du projet. Peut gerer membres, invitations et contenu.
+- `DEVELOPER` : membre contributeur. Peut creer/modifier les taches et
+  diagrammes du projet.
+- `VIEWER` : lecture seule.
+
+Les assignations de taches sont limitees au proprietaire ou aux membres du
+projet.
+
+## Endpoints importants
+
+Base API :
+
+```text
+http://localhost:8080/api
+```
+
+Groupes principaux :
+
+```text
+/api/auth
+/api/projects
+/api/projects/{projectId}/members
+/api/projects/{projectId}/members/stats
+/api/projects/{projectId}/summary
+/api/tasks
+/api/tasks/planning
+/api/tasks/kanban
+/api/timeline
+/api/diagrams
+/api/chat
+/api/notifications
+/api/analytics
+/api/stats
+/api/admin
+```
+
+WebSocket :
+
+```text
+http://localhost:8080/ws
+```
+
+Topics importants :
+
+```text
+/topic/kanban/{projectId}
+/topic/diagram/{diagramId}
+/topic/chat/project/{projectId}
+/topic/chat/private/{userId}
+```
+
+## Donnees de test
+
+Si le script de seed est utilise, verifier son contenu avant execution car il
+peut supprimer les donnees existantes.
+
+```powershell
+cd backend/src/main/resources
 ./seed-data.bat
 ```
 
-*Note : Ce script lancera le backend avec le profil `seed`. Une fois que vous voyez "Initialisation des données terminée" dans les logs, les données sont prêtes.*
+Comptes historiques possibles selon l'etat du seed :
 
-### 🔑 Comptes Utilisateurs (Mot de passe simple)
-
-Voici les comptes de test créés automatiquement :
-
-| Rôle | Email | Mot de passe |
-| :--- | :--- | :--- |
-| **Administrateur** | `admin@agileflow.com` | `Password@2024` |
-| **Manager** | `manager@agileflow.com` | `Password@2024` |
-| **Développeur** | `alice@agileflow.com` | `Password@2024` |
-| **Développeur** | `bob@agileflow.com` | `Password@2024` |
-
-### 📊 Données Initialisées
-- **Équipe** : Alpha Team (Gérée par le Manager, avec Alice et Bob)
-- **Projet** : AgileFlow Platform
-- **Backlog** : 3 User Stories (Gestion utilisateurs, Tableau Kanban, Notifications)
-- **Sprint** : Sprint 1 - Foundation (Actif)
-- **Tâches** : 3 tâches réparties entre Alice et Bob avec différents statuts (TODO, IN_PROGRESS, DONE)
-
-## 📁 Structure du Projet
-
-### Backend Structure
-```
-src/main/java/com/agileflow/
-├── config/          # Configuration Spring
-├── controller/       # Contrôleurs REST API
-├── entity/           # Entités JPA
-├── repository/       # Interfaces Spring Data JPA
-├── service/          # Couche métier
-├── dto/             # Data Transfer Objects
-├── security/        # Configuration Spring Security
-└── websocket/       # Configuration WebSocket
+```text
+admin@agileflow.com / Password@2024
+alice@agileflow.com / Password@2024
+bob@agileflow.com / Password@2024
 ```
 
-### Frontend Structure
-```
-frontend/src/
-├── api/              # Configuration Axios et appels API
-├── components/       # Composants réutilisables
-├── context/         # Contextes React globaux
-├── pages/           # Pages de l'application
-├── routes/          # Configuration React Router
-├── store/           # State management avec Zustand
-├── types/           # Interfaces TypeScript
-└── utils/           # Utilitaires
+## Verifications rapides
+
+Backend :
+
+```powershell
+cd backend
+mvn -DskipTests compile
 ```
 
-## 🛠️ Technologies Utilisées
+Frontend TypeScript :
 
-### Backend
-- **Spring Boot 3.3.5** - Framework principal
-- **Spring Data JPA** - Persistance des données
-- **Spring Security** - Authentification et autorisation
-- **Spring WebSocket** - Communication temps réel
-- **MySQL** - Base de données
-- **Maven** - Gestion des dépendances
-
-### Frontend
-- **React 18** - Framework UI
-- **TypeScript** - Typage statique
-- **Material-UI (MUI)** - Composants UI
-- **React Router v6** - Navigation
-- **Axios** - Client HTTP
-- **Zustand** - Gestion d'état
-- **Vite** - Build tool et dev server
-
-## 🔐 Fonctionnalités d'Authentification
-
-L'application utilise JWT (JSON Web Tokens) pour l'authentification :
-- Tokens stockés dans le localStorage
-- Refresh tokens pour les sessions prolongées
-- Protection automatique des routes privées
-
-## 📊 Fonctionnalités Principales
-
-- ✅ Gestion des utilisateurs et rôles (Admin, Manager, Developer)
-- ✅ Création et gestion de projets
-- ✅ Planification des sprints
-- ✅ Tableau Kanban pour les tâches
-- ✅ Chat en temps réel
-- ✅ Tableaux de bord et analytics
-- ✅ Notifications en temps réel
-
-## 👥 Rôles et Permissions
-
-- **ROLE_ADMIN** : Accès complet à toutes les fonctionnalités
-- **ROLE_MANAGER** : Gestion des projets et équipes
-- **ROLE_DEVELOPER** : Accès aux tâches assignées
-
-## 🚧 Développement
-
-### Commandes Utiles
-
-**Backend :**
-```bash
-./mvnw clean package    # Builder le projet
-./mvnw test            # Lancer les tests
-./mvnw spring-boot:run # Démarrer l'application
+```powershell
+cd frontend
+npm exec tsc -- --noEmit
 ```
 
-**Frontend :**
-```bash
-npm install          # Installer les dépendances
-npm run dev          # Serveur de développement
-npm run build        # Builder pour production
-npm run preview      # Preview de la build
-npm run lint         # Vérification du code
+Frontend dev :
+
+```powershell
+cd frontend
+npm run dev
 ```
 
-### Variables d'Environnement
+## Notes importantes
 
-**Backend** (`application.properties`) :
-- `spring.datasource.url` - URL de la base MySQL
-- `spring.datasource.username` - Utilisateur MySQL
-- `spring.datasource.password` - Mot de passe MySQL
-- `jwt.secret` - Clé secrète pour JWT
-
-**Frontend** (`frontend/.env`) :
-- `VITE_API_URL` - URL de l'API backend
-- `VITE_WS_URL` - URL WebSocket pour le temps réel
-
-## 🤝 Contribution
-
-1. Forker le projet
-2. Créer une branche feature (`git checkout -b feature/ma-fonctionnalite`)
-3. Committer les changements (`git commit -m 'Ajouter ma fonctionnalité'`)
-4. Pusher vers la branche (`git push origin feature/ma-fonctionnalite`)
-5. Ouvrir une Pull Request
-
-## 📝 License
-
-Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
-
-## 🆘 Support
-
-Pour toute question ou problème :
-1. Consulter la documentation ci-dessus
-2. Vérifier les issues existantes
-3. Créer une nouvelle issue si nécessaire
-
----
-
-**⚠️ IMPORTANT POUR L'ÉQUIPE :**
-
-Avant de commencer à travailler sur le frontend, assurez-vous de :
-1. Naviguer dans le dossier `frontend/`
-2. Exécuter `npm install` pour installer toutes les dépendances
-3. Créer `.env` depuis `.env.example`
-4. Vérifier que le backend tourne sur http://localhost:8080
-5. Lancer le frontend avec `npm run dev`
-
-Le projet est prêt pour le développement ! 🚀
+- Ne jamais commiter de secrets OAuth, Gmail ou JWT.
+- `spring.flyway.enabled=false` en developpement ; Hibernate `ddl-auto=update`
+  gere le schema.
+- Les migrations SQL servent surtout de documentation locale.
+- Les pages projet utilisent le projet actif du header.
+- Les suppressions de taches peuvent laisser des logs historiques ;
+  `ActivityLog.task` ignore les references de taches supprimees.
+- En cas de page blanche, verifier d'abord la console navigateur, vider le
+  cache Vite et nettoyer `localStorage` si necessaire.

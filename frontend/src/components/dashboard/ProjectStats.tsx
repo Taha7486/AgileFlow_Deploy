@@ -8,7 +8,6 @@ type Props = {
 const items = (stats: DashboardStats) => [
   { label: 'Projets', value: stats.totalProjects },
   { label: 'Projets actifs', value: stats.activeProjects },
-  { label: 'Sprints actifs', value: stats.activeSprints },
   { label: 'Taches', value: stats.totalTasks },
   { label: 'A faire', value: stats.todoTasks },
   { label: 'En cours', value: stats.inProgressTasks },

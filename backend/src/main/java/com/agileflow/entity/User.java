@@ -31,6 +31,8 @@ public class User {
     private String passwordResetOtpHash;
     private LocalDateTime passwordResetOtpExpiresAt;
     private LocalDateTime passwordResetVerifiedUntil;
+    @Column(name = "pending_invitation_token_hash", length = 64)
+    private String pendingInvitationTokenHash;
     @Builder.Default
     private LocalDateTime dateCreation = LocalDateTime.now();
 

@@ -4,30 +4,26 @@ import {
   Box,
   Button,
   CircularProgress,
-  FormControl,
   Grid,
-  InputLabel,
-  MenuItem,
   Paper,
-  Select,
   Snackbar,
   Stack,
   Typography,
 } from '@mui/material';
 import { AccountTree, Refresh } from '@mui/icons-material';
 import { createDiagram, deleteDiagram, fetchDiagrams, updateDiagram } from '../../api/diagramsApi';
-import { fetchProjects } from '../../api/projectsApi';
+import { useActiveProject } from '../../hooks/useActiveProject';
 import DiagramCanvas from '../../components/diagrams/DiagramCanvas';
 import DiagramExport from '../../components/diagrams/DiagramExport';
 import DiagramGallery from '../../components/diagrams/DiagramGallery';
 import MermaidRenderer from '../../components/diagrams/MermaidRenderer';
 import StepInputForm from '../../components/diagrams/StepInputForm';
-import type { CreateDiagramPayload, DiagramData, ProjectListItem, UpdateDiagramPayload } from '../../types';
+import type { CreateDiagramPayload, DiagramData, UpdateDiagramPayload } from '../../types';
 
 const DiagramFlow = () => {
   const exportRef = useRef<HTMLDivElement>(null);
-  const [projects, setProjects] = useState<ProjectListItem[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<number | ''>('');
+  const { activeProject } = useActiveProject();
+  const selectedProjectId = activeProject?.id ?? '';
   const [diagrams, setDiagrams] = useState<DiagramData[]>([]);
   const [activeDiagram, setActiveDiagram] = useState<DiagramData | null>(null);
   const [draft, setDraft] = useState<CreateDiagramPayload | null>(null);
@@ -36,19 +32,17 @@ const DiagramFlow = () => {
   const [error, setError] = useState<string | null>(null);
   const [snack, setSnack] = useState<string | null>(null);
 
-  const loadProjects = useCallback(async () => {
-    try {
-      setProjects(await fetchProjects());
-    } catch {
-      setProjects([]);
-    }
-  }, []);
-
   const loadDiagrams = useCallback(async () => {
+    if (!selectedProjectId) {
+      setDiagrams([]);
+      setActiveDiagram(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const rows = await fetchDiagrams(selectedProjectId || undefined);
+      const rows = await fetchDiagrams(selectedProjectId);
       setDiagrams(rows);
       setActiveDiagram((current) => {
         if (!current) return rows[0] ?? null;
@@ -62,10 +56,6 @@ const DiagramFlow = () => {
       setLoading(false);
     }
   }, [selectedProjectId]);
-
-  useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
 
   useEffect(() => {
     loadDiagrams();
@@ -85,7 +75,6 @@ const DiagramFlow = () => {
         saved = await updateDiagram(activeDiagram.id, updatePayload);
       } else {
         saved = await createDiagram(payload as CreateDiagramPayload);
-        setSelectedProjectId(saved.projectId);
       }
       setActiveDiagram(saved);
       setSnack('Diagramme enregistre.');
@@ -125,6 +114,7 @@ const DiagramFlow = () => {
         <Stack direction="row" spacing={1.5} alignItems="center">
           <AccountTree color="primary" />
           <Typography variant="h5" fontWeight={800}>DiagramFlow</Typography>
+          {activeProject && <Typography variant="body2" color="text.secondary">Projet : {activeProject.name}</Typography>}
         </Stack>
         <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
           <Button startIcon={<Refresh />} onClick={loadDiagrams} disabled={loading}>Actualiser</Button>
@@ -135,29 +125,8 @@ const DiagramFlow = () => {
       <Grid container spacing={3}>
         <Grid item xs={12} lg={4}>
           <Stack spacing={2}>
-            <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: 'grey.200' }}>
-              <FormControl size="small" fullWidth>
-                <InputLabel id="diagram-gallery-project-label">Projet</InputLabel>
-                <Select
-                  labelId="diagram-gallery-project-label"
-                  label="Projet"
-                  value={selectedProjectId}
-                  onChange={(event) => {
-                    setSelectedProjectId(event.target.value as number | '');
-                    setActiveDiagram(null);
-                    setDraft(null);
-                  }}
-                >
-                  <MenuItem value="">Tous les projets</MenuItem>
-                  {projects.map((project) => (
-                    <MenuItem key={project.id} value={project.id}>{project.name}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Paper>
-
             <StepInputForm
-              projects={projects}
+              projects={activeProject ? [activeProject] : []}
               initialDiagram={activeDiagram}
               defaultProjectId={selectedProjectId}
               saving={saving}
@@ -166,7 +135,9 @@ const DiagramFlow = () => {
               onNew={handleNew}
             />
 
-            {loading ? (
+            {!activeProject ? (
+              <Alert severity="info">Selectionnez un projet dans le header.</Alert>
+            ) : loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
             ) : (
               <DiagramGallery diagrams={diagrams} selectedId={activeDiagram?.id} onSelect={setActiveDiagram} onDelete={handleDelete} />

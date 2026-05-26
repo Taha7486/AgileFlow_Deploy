@@ -18,6 +18,10 @@ public record CreateTaskRequest(
         @NotNull(message = "La priorite est obligatoire.")
         Task.Priorite priorite,
 
+        Task.Type type,
+
+        Long projectId,
+
         Long sprintId,
 
         Long assignedToId,
@@ -28,4 +32,16 @@ public record CreateTaskRequest(
 
         Set<String> labels
 ) {
+    public CreateTaskRequest(
+            String titre,
+            String description,
+            Task.Priorite priorite,
+            Long sprintId,
+            Long assignedToId,
+            Long storyId,
+            String dateEcheance,
+            Set<String> labels
+    ) {
+        this(titre, description, priorite, null, null, sprintId, assignedToId, storyId, dateEcheance, labels);
+    }
 }

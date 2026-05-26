@@ -151,11 +151,9 @@ public class StatsService {
     }
 
     private Scope resolveScope(User actor) {
-        return switch (actor.getRole()) {
-            case ROLE_ADMIN -> new Scope(null, null);
-            case ROLE_MANAGER -> new Scope(actor.getId(), null);
-            case ROLE_DEVELOPER -> new Scope(null, actor.getId());
-        };
+        return actor.getRole() == User.Role.ROLE_ADMIN
+                ? new Scope(null, null)
+                : new Scope(null, actor.getId());
     }
 
     private long number(Object value) {

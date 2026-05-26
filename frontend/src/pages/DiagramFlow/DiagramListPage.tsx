@@ -15,8 +15,6 @@ import {
   FormControlLabel,
   Grid,
   InputLabel,
-  MenuItem,
-  Select,
   Stack,
   Switch,
   TextField,
@@ -25,10 +23,11 @@ import {
 import { AccountTree, Add, DeleteOutline, Edit, OpenInNew } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { createDiagram, deleteDiagram, fetchDiagrams } from '../../api/diagramsApi';
-import { fetchProjects } from '../../api/projectsApi';
-import type { CreateDiagramPayload, DiagramData, DiagramType, ProjectListItem } from '../../types';
+import { useActiveProject } from '../../hooks/useActiveProject';
+import type { CreateDiagramPayload, DiagramData, DiagramType } from '../../types';
 import { DIAGRAM_TYPE_LABELS, EDITOR_DIAGRAM_TYPES, getTemplate } from '../../data/diagramTemplates';
 import { buildCanvasData, toEdgeDTO, toNodeDTO } from '../../utils/diagramSerialization';
+import PageHeader from '../../components/layout/PageHeader';
 
 const typeColor: Record<string, 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'default'> = {
   USE_CASE: 'primary',
@@ -41,8 +40,8 @@ const typeColor: Record<string, 'primary' | 'secondary' | 'info' | 'success' | '
 
 const DiagramListPage = () => {
   const navigate = useNavigate();
-  const [projects, setProjects] = useState<ProjectListItem[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<number | ''>('');
+  const { activeProject } = useActiveProject();
+  const selectedProjectId = activeProject?.id ?? '';
   const [diagrams, setDiagrams] = useState<DiagramData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,21 +51,20 @@ const DiagramListPage = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<DiagramType>('USE_CASE');
-  const [projectId, setProjectId] = useState<number | ''>('');
   const [shared, setShared] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
+    if (!selectedProjectId) {
+      setDiagrams([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const [projectRows, diagramRows] = await Promise.all([
-        fetchProjects(),
-        fetchDiagrams(selectedProjectId || undefined),
-      ]);
-      setProjects(projectRows);
+      const diagramRows = await fetchDiagrams(selectedProjectId);
       setDiagrams(diagramRows);
-      setProjectId((current) => current || projectRows[0]?.id || '');
     } catch {
       setError('Impossible de charger DiagramFlow.');
     } finally {
@@ -90,7 +88,7 @@ const DiagramListPage = () => {
   }, [diagrams, search, typeFilter]);
 
   const handleCreate = async () => {
-    if (!title.trim() || !projectId) return;
+    if (!title.trim() || !selectedProjectId) return;
     setSaving(true);
     try {
       const template = getTemplate(type);
@@ -100,7 +98,7 @@ const DiagramListPage = () => {
         titre: title.trim(),
         description,
         type,
-        projectId: Number(projectId),
+        projectId: Number(selectedProjectId),
         etapes: [],
         shared,
         isShared: shared,
@@ -123,24 +121,20 @@ const DiagramListPage = () => {
   };
 
   return (
-    <Box>
-      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2} sx={{ mb: 3 }}>
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <AccountTree color="primary" />
-          <Box>
-            <Typography variant="h5" fontWeight={800}>DiagramFlow</Typography>
-            <Typography variant="body2" color="text.secondary">Editeur collaboratif de diagrammes</Typography>
-          </Box>
-        </Stack>
-        <Button variant="contained" startIcon={<Add />} onClick={() => setModalOpen(true)}>Nouveau diagramme</Button>
-      </Stack>
+    <Box sx={{ mx: { xs: -2, md: -3 }, mt: { xs: -2, md: -3 }, bgcolor: '#F7F8F9', minHeight: 'calc(100vh - 64px)' }}>
+      <Box sx={{ maxWidth: 1500, mx: 'auto', width: '100%', px: { xs: 2, md: 4, xl: 6 }, py: 3 }}>
+      <Box sx={{ mb: 3 }}>
+        <PageHeader
+          icon={<AccountTree />}
+          title="DiagramFlow"
+          subtitle={`Editeur collaboratif de diagrammes${activeProject ? ` - ${activeProject.name}` : ''}`}
+          disablePadding
+          action={<Button variant="contained" startIcon={<Add />} onClick={() => setModalOpen(true)}>Nouveau diagramme</Button>}
+        />
+      </Box>
 
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 3 }}>
         <TextField label="Rechercher" size="small" value={search} onChange={(event) => setSearch(event.target.value)} sx={{ minWidth: 240 }} />
-        <Select size="small" value={selectedProjectId} displayEmpty onChange={(event) => setSelectedProjectId(event.target.value as number | '')} sx={{ minWidth: 220 }}>
-          <MenuItem value="">Tous les projets</MenuItem>
-          {projects.map((project) => <MenuItem key={project.id} value={project.id}>{project.name}</MenuItem>)}
-        </Select>
         <Stack direction="row" spacing={1} flexWrap="wrap">
           <Chip label="Tous" color={typeFilter === 'ALL' ? 'primary' : 'default'} onClick={() => setTypeFilter('ALL')} />
           {EDITOR_DIAGRAM_TYPES.map((item) => (
@@ -150,7 +144,9 @@ const DiagramListPage = () => {
       </Stack>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {loading ? (
+      {!activeProject ? (
+        <Alert severity="info">Selectionnez un projet dans le header pour afficher ses diagrammes.</Alert>
+      ) : loading ? (
         <Box sx={{ display: 'grid', placeItems: 'center', minHeight: 260 }}><CircularProgress /></Box>
       ) : (
         <Grid container spacing={2}>
@@ -198,18 +194,15 @@ const DiagramListPage = () => {
                 </Grid>
               ))}
             </Grid>
-            <Select value={projectId} displayEmpty onChange={(event) => setProjectId(event.target.value as number | '')}>
-              <MenuItem value="">Choisir un projet</MenuItem>
-              {projects.map((project) => <MenuItem key={project.id} value={project.id}>{project.name}</MenuItem>)}
-            </Select>
             <FormControlLabel control={<Switch checked={shared} onChange={(event) => setShared(event.target.checked)} />} label="Partager avec l'equipe du projet" />
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setModalOpen(false)}>Annuler</Button>
-          <Button variant="contained" disabled={saving || !title.trim() || !projectId} onClick={handleCreate}>{saving ? 'Creation...' : 'Creer'}</Button>
+          <Button variant="contained" disabled={saving || !title.trim() || !selectedProjectId} onClick={handleCreate}>{saving ? 'Creation...' : 'Creer'}</Button>
         </DialogActions>
       </Dialog>
+      </Box>
     </Box>
   );
 };

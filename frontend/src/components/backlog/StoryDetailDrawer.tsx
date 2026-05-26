@@ -22,7 +22,6 @@ type Props = {
   onClose: () => void;
   onEdit: (story: UserStoryItem) => void;
   onDelete: (story: UserStoryItem) => void;
-  onRemoveFromSprint: (story: UserStoryItem) => void;
 };
 
 const StoryDetailDrawer = ({
@@ -32,7 +31,6 @@ const StoryDetailDrawer = ({
   onClose,
   onEdit,
   onDelete,
-  onRemoveFromSprint,
 }: Props) => {
   const navigate = useNavigate();
 
@@ -43,7 +41,6 @@ const StoryDetailDrawer = ({
   const goToKanban = () => {
     const params = new URLSearchParams();
     params.set('project', String(story.projectId));
-    if (story.sprintId) params.set('sprint', String(story.sprintId));
     params.set('story', String(story.id));
     navigate(`/kanban?${params.toString()}`);
   };
@@ -60,7 +57,6 @@ const StoryDetailDrawer = ({
           {story.epicTitle && (
             <Chip size="small" label={story.epicTitle} sx={{ bgcolor: story.epicColor ?? 'grey.500', color: '#fff' }} />
           )}
-          <Chip size="small" variant="outlined" label={story.sprintLabel ?? 'Backlog produit'} />
           {story.storyPoints != null && <Chip size="small" variant="outlined" label={`${story.storyPoints} pts`} />}
           {story.done && <Chip size="small" color="success" label="Terminee" />}
         </Stack>
@@ -99,9 +95,6 @@ const StoryDetailDrawer = ({
           {canManage && (
             <>
               <Button variant="outlined" onClick={() => onEdit(story)}>Modifier la story</Button>
-              {story.sprintId != null && (
-                <Button onClick={() => onRemoveFromSprint(story)}>Retirer du sprint</Button>
-              )}
               <Button color="error" onClick={() => onDelete(story)}>Supprimer</Button>
             </>
           )}

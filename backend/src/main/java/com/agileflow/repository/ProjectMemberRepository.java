@@ -14,6 +14,8 @@ public interface ProjectMemberRepository extends JpaRepository<ProjectMember, Lo
 
     Optional<ProjectMember> findByProject_IdAndUser_Id(Long projectId, Long userId);
 
+    boolean existsByProject_IdAndUser_IdAndRoleIn(Long projectId, Long userId, List<ProjectMember.ProjectRole> roles);
+
     List<ProjectMember> findByProject_IdOrderByJoinedAtAsc(Long projectId);
 
     @Query("SELECT pm.project.id FROM ProjectMember pm WHERE pm.user.id = :userId")
@@ -22,4 +24,11 @@ public interface ProjectMemberRepository extends JpaRepository<ProjectMember, Lo
     void deleteByProject_IdAndUser_Id(Long projectId, Long userId);
 
     long countByProject_Id(Long projectId);
+
+    @Query("""
+            SELECT pm.user.id
+            FROM ProjectMember pm
+            WHERE pm.project.id = :projectId
+            """)
+    List<Long> findUserIdsByProjectId(@Param("projectId") Long projectId);
 }

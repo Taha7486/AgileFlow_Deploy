@@ -14,8 +14,22 @@ interface AuthState {
   logout: () => void;
 }
 
+const readStoredUser = (): User | null => {
+  const raw = localStorage.getItem('user');
+  if (!raw || raw === 'undefined' || raw === 'null') return null;
+
+  try {
+    return JSON.parse(raw) as User;
+  } catch {
+    localStorage.removeItem('user');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    return null;
+  }
+};
+
 export const useAuthStore = create<AuthState>((set) => ({
-  user: JSON.parse(localStorage.getItem('user') || 'null'),
+  user: readStoredUser(),
   accessToken: localStorage.getItem('accessToken'),
   refreshToken: localStorage.getItem('refreshToken'),
   

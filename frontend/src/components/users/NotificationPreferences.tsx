@@ -31,7 +31,6 @@ import { useAuth } from '../../context/AuthContext';
 type PreferenceKey = keyof Omit<EmailPreferences, 'userId'>;
 
 const OPTIONS: Array<{ key: PreferenceKey; type: EmailNotificationType; label: string; description: string }> = [
-  { key: 'sprintStartEnabled', type: 'SPRINT_START', label: 'Demarrage de sprint', description: 'Recevoir un email quand un sprint commence.' },
   { key: 'taskAssignedEnabled', type: 'TASK_ASSIGNED', label: 'Tache assignee', description: 'Recevoir un email lors d une nouvelle assignation.' },
   { key: 'deadlineEnabled', type: 'DEADLINE', label: 'Rappel echeance', description: 'Recevoir un rappel avant la date limite d une tache.' },
   { key: 'mentionEnabled', type: 'MENTION', label: 'Mentions', description: 'Recevoir un email lorsqu un membre vous mentionne.' },
@@ -52,7 +51,7 @@ const NotificationPreferences = ({
   const { logout } = useAuth();
   const [preferences, setPreferences] = useState<EmailPreferences | null>(null);
   const [preview, setPreview] = useState<EmailPreview | null>(null);
-  const [selectedPreview, setSelectedPreview] = useState<EmailNotificationType>('SPRINT_START');
+  const [selectedPreview, setSelectedPreview] = useState<EmailNotificationType>('TASK_ASSIGNED');
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<PreferenceKey | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +72,7 @@ const NotificationPreferences = ({
       try {
         const [prefs, previewData] = await Promise.all([
           fetchMyEmailPreferences(),
-          fetchEmailPreview('SPRINT_START'),
+          fetchEmailPreview('TASK_ASSIGNED'),
         ]);
         setPreferences(prefs);
         setPreview(previewData);

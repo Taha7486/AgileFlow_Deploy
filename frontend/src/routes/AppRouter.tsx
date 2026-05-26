@@ -1,7 +1,10 @@
 import { lazy, Suspense, type ReactNode } from 'react';
+import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import { useAuth } from '../context/AuthContext';
+import { useActiveProject } from '../hooks/useActiveProject';
 import LoginPage from '../pages/auth/LoginPage';
 import OAuthRedirectPage from '../pages/auth/OAuthRedirectPage';
 import RegisterPage from '../pages/auth/RegisterPage';
@@ -13,7 +16,6 @@ import TeamsPage from '../pages/teams/TeamsPage';
 import TeamDetailsPage from '../pages/teams/TeamDetailsPage';
 import UserProfilePage from '../pages/users/UserProfilePage';
 import UsersListPage from '../pages/users/UsersListPage';
-import SprintsPage from '../pages/sprints/SprintsPage';
 import BacklogPage from '../pages/backlog/BacklogPage';
 import KanbanBoard from '../pages/kanban/KanbanBoard';
 import ProfileLayout from '../components/profile/ProfileLayout';
@@ -28,23 +30,52 @@ const AnalyticsDashboard = lazy(() => import('../pages/analytics/AnalyticsDashbo
 const StatsPage = lazy(() => import('../pages/stats/StatsPage'));
 const DiagramListPage = lazy(() => import('../pages/DiagramFlow/DiagramListPage'));
 const DiagramEditorPage = lazy(() => import('../pages/DiagramFlow/DiagramEditorPage'));
+const PlanningPage = lazy(() => import('../pages/planning/PlanningPage'));
+const TimelinePage = lazy(() => import('../pages/timeline/TimelinePage'));
+const ProjectSummaryPage = lazy(() => import('../pages/projects/summary/ProjectSummaryPage'));
 
 const LazyPage = ({ children }: { children: ReactNode }) => (
-  <Suspense fallback={null}>{children}</Suspense>
+  <Suspense
+    fallback={
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 240 }}>
+        <CircularProgress size={28} />
+      </Box>
+    }
+  >
+    {children}
+  </Suspense>
 );
 
 const ProtectedRoute = ({ allowedRoles }: { allowedRoles?: string[] }) => {
   const { token, user } = useAuth();
   if (!token || !user) return <Navigate to="/login" replace />;
-  if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to="/dashboard" replace />;
+  if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to="/" replace />;
   return <AppLayout />;
 };
 
 const AdminRoute = ({ children }: { children: ReactNode }) => {
   const { token, user } = useAuth();
   if (!token || !user) return <Navigate to="/login" replace />;
-  if (user.role !== 'ROLE_ADMIN') return <Navigate to="/dashboard" replace />;
+  if (user.role !== 'ROLE_ADMIN') return <Navigate to="/" replace />;
   return <>{children}</>;
+};
+
+const ProjectHomeRedirect = () => {
+  const { activeProject, isLoading } = useActiveProject();
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 240 }}>
+        <CircularProgress size={28} />
+      </Box>
+    );
+  }
+
+  if (activeProject) {
+    return <Navigate to={`/projects/${activeProject.id}/summary`} replace />;
+  }
+
+  return <DashboardPage />;
 };
 
 const UnauthorizedPage = () => (
@@ -64,12 +95,14 @@ const AppRouter = () => (
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
       <Route element={<ProtectedRoute />}>
-        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route index element={<ProjectHomeRedirect />} />
+        <Route path="/dashboard" element={<ProjectHomeRedirect />} />
         <Route path="/analytics" element={<LazyPage><AnalyticsDashboard /></LazyPage>} />
         <Route path="/stats" element={<LazyPage><StatsPage /></LazyPage>} />
         <Route path="/diagrams" element={<LazyPage><DiagramListPage /></LazyPage>} />
         <Route path="/diagrams/:id" element={<LazyPage><DiagramEditorPage /></LazyPage>} />
         <Route path="/projects" element={<ProjectsListPage />} />
+        <Route path="/projects/:projectId/summary" element={<LazyPage><ProjectSummaryPage /></LazyPage>} />
         <Route
           path="/users"
           element={
@@ -81,7 +114,8 @@ const AppRouter = () => (
         <Route path="/users/:id" element={<UserProfilePage />} />
         <Route path="/teams" element={<TeamsPage />} />
         <Route path="/teams/:id" element={<TeamDetailsPage />} />
-        <Route path="/sprints" element={<SprintsPage />} />
+        <Route path="/planning" element={<LazyPage><PlanningPage /></LazyPage>} />
+        <Route path="/timeline" element={<LazyPage><TimelinePage /></LazyPage>} />
         <Route path="/backlog" element={<BacklogPage />} />
         <Route path="/kanban" element={<KanbanBoard />} />
         <Route path="/profile" element={<ProfileLayout />}>
@@ -96,7 +130,7 @@ const AppRouter = () => (
         <Route path="/notifications" element={<NotifCenter />} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   </BrowserRouter>
 );

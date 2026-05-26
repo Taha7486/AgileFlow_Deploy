@@ -6,7 +6,7 @@ describe('MemberStats', () => {
     render(<MemberStats
       memberStats={[
         { userId: 1, memberName: 'Alice Dev', role: 'ROLE_DEVELOPER', activityCount: 7, completedTasks: 3 },
-        { userId: 2, memberName: 'Sara Manager', role: 'ROLE_MANAGER', activityCount: 4, completedTasks: 1 },
+        { userId: 2, memberName: 'Sara Owner', role: 'ROLE_DEVELOPER', activityCount: 4, completedTasks: 1 },
       ]}
       trend={[
         { date: '2026-04-20', activityCount: 2, completedTasks: 0 },

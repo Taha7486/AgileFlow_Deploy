@@ -6,6 +6,7 @@ public record TaskDTO(
         Long id,
         String titre,
         String description,
+        String type,
         String statut,
         String priorite,
         boolean isUrgent,

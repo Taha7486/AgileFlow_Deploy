@@ -4,10 +4,6 @@ import {
   Box,
   Button,
   CircularProgress,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
   Snackbar,
   Typography,
   Grid,
@@ -19,8 +15,7 @@ import {
 } from '@mui/material';
 import { Add } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import { fetchProjects } from '../../api/projectsApi';
-import type { ProjectListItem } from '../../types';
+import { useActiveProject } from '../../hooks/useActiveProject';
 import {
   createSprint,
   deleteSprint,
@@ -36,10 +31,10 @@ import SprintPlanningModal from '../../components/sprints/SprintPlanningModal';
 
 const SprintsPage = () => {
   const { user } = useAuth();
-  const canManage = user?.role === 'ROLE_ADMIN';
+  const { activeProject } = useActiveProject();
+  const selectedProjectId = activeProject?.id ?? '';
+  const canManage = Boolean(user && activeProject && (user.role === 'ROLE_ADMIN' || activeProject.owner));
 
-  const [projects, setProjects] = useState<ProjectListItem[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<number | ''>('');
   const [sprints, setSprints] = useState<SprintItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,19 +43,6 @@ const SprintsPage = () => {
   const [planningOpen, setPlanningOpen] = useState(false);
   const [editSprint, setEditSprint] = useState<SprintItem | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<SprintItem | null>(null);
-
-  const loadProjects = useCallback(async () => {
-    setError(null);
-    try {
-      const data = await fetchProjects();
-      setProjects(data);
-      if (!selectedProjectId && data.length > 0) {
-        setSelectedProjectId(data[0].id);
-      }
-    } catch {
-      setError('Impossible de charger les projets.');
-    }
-  }, [selectedProjectId]);
 
   const loadSprints = useCallback(async () => {
     if (!selectedProjectId) {
@@ -78,10 +60,6 @@ const SprintsPage = () => {
       setLoading(false);
     }
   }, [selectedProjectId]);
-
-  useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
 
   useEffect(() => {
     loadSprints();
@@ -157,7 +135,7 @@ const SprintsPage = () => {
     }
   };
 
-  const selectedProject = projects.find((p) => p.id === selectedProjectId);
+  const selectedProject = activeProject;
 
   return (
     <Box>
@@ -175,21 +153,6 @@ const SprintsPage = () => {
           Sprints
         </Typography>
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-          <FormControl size="small" sx={{ minWidth: 260 }}>
-            <InputLabel id="project-select-label">Projet</InputLabel>
-            <Select
-              labelId="project-select-label"
-              label="Projet"
-              value={selectedProjectId}
-              onChange={(e) => setSelectedProjectId(e.target.value as number)}
-            >
-              {projects.map((p) => (
-                <MenuItem key={p.id} value={p.id}>
-                  {p.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
           {canManage && (
             <Button
               variant="contained"

@@ -212,6 +212,36 @@ public class EmailTemplateService {
         return new RenderedEmail(subject, html);
     }
 
+    public RenderedEmail buildProjectAdded(User recipient, Project project, User inviter, String projectUrl) {
+        String projectName = project != null ? project.getNom() : "Projet AgileFlow";
+        String inviterName = fullName(inviter);
+        String subject = "Vous avez ete ajoute au projet \"" + projectName + "\"";
+        String html = baseProjectEmail(
+                "Bienvenue dans le projet",
+                "Bonjour " + fullName(recipient) + ",",
+                "<strong>" + escape(inviterName) + "</strong> vous a ajoute au projet <strong>\"" + escape(projectName) + "\"</strong>.",
+                "Acceder au projet",
+                projectUrl,
+                "Vous recevez cet email car vous etes membre AgileFlow."
+        );
+        return new RenderedEmail(subject, html);
+    }
+
+    public RenderedEmail buildProjectInvitation(String email, Project project, User inviter, String registerUrl) {
+        String projectName = project != null ? project.getNom() : "Projet AgileFlow";
+        String inviterName = fullName(inviter);
+        String subject = inviterName + " vous invite a rejoindre AgileFlow - Projet \"" + projectName + "\"";
+        String html = baseProjectEmail(
+                "Invitation AgileFlow",
+                "Bonjour,",
+                "<strong>" + escape(inviterName) + "</strong> vous invite a rejoindre AgileFlow pour collaborer sur le projet <strong>\"" + escape(projectName) + "\"</strong>.",
+                "Creer mon compte et rejoindre",
+                registerUrl,
+                "Ce lien expire dans 72 heures et ne peut etre utilise qu'une seule fois."
+        );
+        return new RenderedEmail(subject, html);
+    }
+
     private Sprint sampleSprint() {
         Project project = Project.builder().nom("AgileFlow Platform").build();
         return Sprint.builder()
@@ -254,6 +284,44 @@ public class EmailTemplateService {
         }
         String value = ((user.getPrenom() != null ? user.getPrenom() : "") + " " + (user.getNom() != null ? user.getNom() : "")).trim();
         return value.isBlank() ? user.getEmail() : value;
+    }
+
+    private String baseProjectEmail(String title, String greeting, String body, String ctaLabel, String ctaUrl, String footer) {
+        return """
+                <html>
+                  <body style="margin:0;padding:24px;background:#f3f4f6;font-family:Arial,sans-serif;color:#111827;">
+                    <table role="presentation" style="width:100%%;max-width:640px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
+                      <tr>
+                        <td style="padding:24px 28px;background:#2563eb;color:#ffffff;">
+                          <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;opacity:.9;">AgileFlow</div>
+                          <h1 style="margin:8px 0 0;font-size:24px;line-height:1.3;">%s</h1>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding:28px;">
+                          <p style="margin:0 0 16px;">%s</p>
+                          <p style="margin:0 0 24px;line-height:1.6;">%s</p>
+                          <a href="%s" style="display:inline-block;padding:12px 18px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;">
+                            %s
+                          </a>
+                          <p style="margin:24px 0 0;color:#6b7280;font-size:13px;line-height:1.6;">%s</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </body>
+                </html>
+                """.formatted(escape(title), greeting, body, ctaUrl, escape(ctaLabel), escape(footer));
+    }
+
+    private String escape(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
     }
 
     private String formatDate(LocalDate date) {

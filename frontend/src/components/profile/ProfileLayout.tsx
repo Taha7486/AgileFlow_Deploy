@@ -19,7 +19,6 @@ import { useAuth } from '../../context/AuthContext';
 
 const ROLE_LABELS: Record<string, { label: string; color: 'default' | 'error' | 'warning' | 'info' }> = {
   ROLE_ADMIN: { label: 'Administrateur', color: 'error' },
-  ROLE_MANAGER: { label: 'Manager', color: 'warning' },
   ROLE_DEVELOPER: { label: 'Developpeur', color: 'info' },
 };
 

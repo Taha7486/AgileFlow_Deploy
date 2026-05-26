@@ -6,7 +6,6 @@ import { exportStatsCsv, exportStatsPdf, fetchStats } from '../../api/statsApi';
 vi.mock('../../api/statsApi', () => ({
   fetchStats: vi.fn().mockResolvedValue({
     projectId: null,
-    sprintId: null,
     startDate: '2026-04-20',
     endDate: '2026-04-26',
     totalTasks: 10,
@@ -15,15 +14,12 @@ vi.mock('../../api/statsApi', () => ({
     reviewTasks: 1,
     completedTasks: 4,
     completionRate: 40,
-    activeSprints: 1,
     averageVelocity: 8,
     burndown: [
       { date: '2026-04-20', remainingTasks: 10, idealRemainingTasks: 10 },
       { date: '2026-04-21', remainingTasks: 8, idealRemainingTasks: 8 },
     ],
-    velocity: [
-      { sprintId: 1, sprintName: 'Sprint 1', totalTasks: 10, completedTasks: 4, completedStoryPoints: 8, capacityPoints: 20 },
-    ],
+    velocity: [],
   }),
   exportStatsPdf: vi.fn().mockResolvedValue(new Blob(['%PDF stats'], { type: 'application/pdf' })),
   exportStatsCsv: vi.fn().mockResolvedValue(new Blob(['metric,value'], { type: 'text/csv' })),
@@ -31,10 +27,6 @@ vi.mock('../../api/statsApi', () => ({
 
 vi.mock('../../api/projectsApi', () => ({
   fetchProjects: vi.fn().mockResolvedValue([]),
-}));
-
-vi.mock('../../api/sprintsApi', () => ({
-  fetchSprintsByProject: vi.fn().mockResolvedValue([]),
 }));
 
 describe('StatsPage', () => {
@@ -55,8 +47,8 @@ describe('StatsPage', () => {
     render(<StatsPage />);
 
     expect(await screen.findByText('Stats & Rapports')).toBeInTheDocument();
-    expect(screen.getByTestId('burndown-chart')).toBeInTheDocument();
-    expect(screen.getByTestId('velocity-chart')).toBeInTheDocument();
+    expect(screen.getByText('Progression')).toBeInTheDocument();
+    expect(screen.getByText('Velocite moyenne')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /pdf/i }));
     await user.click(screen.getByRole('button', { name: /csv/i }));

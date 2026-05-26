@@ -12,8 +12,8 @@ import { formatDateTime } from '../../utils/formatDate';
 import AddEditUserModal from '../../components/users/AddEditUserModal';
 
 const roleChip = (role: string) => {
-  const color = role === 'ROLE_ADMIN' ? 'error' : role === 'ROLE_MANAGER' ? 'warning' : 'info';
-  const label = role === 'ROLE_ADMIN' ? 'Admin' : role === 'ROLE_MANAGER' ? 'Manager' : 'Développeur';
+  const color = role === 'ROLE_ADMIN' ? 'error' : 'info';
+  const label = role === 'ROLE_ADMIN' ? 'Admin' : 'Développeur';
   return <Chip label={label} color={color} />;
 };
 

@@ -24,6 +24,15 @@ public class UserController {
         return userService.listUsers(q);
     }
 
+    @GetMapping("/search")
+    @PreAuthorize("isAuthenticated()")
+    public List<UserSearchResultDTO> searchUsers(
+            @RequestParam String q,
+            @RequestParam Long projectId
+    ) {
+        return userService.searchUsersForProject(q, projectId);
+    }
+
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public UserDetailDTO getMyProfile() {

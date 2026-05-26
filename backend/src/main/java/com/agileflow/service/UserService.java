@@ -1,12 +1,16 @@
 package com.agileflow.service;
 
 import com.agileflow.dto.*;
+import com.agileflow.entity.Project;
 import com.agileflow.entity.User;
 import com.agileflow.exception.ConflictException;
+import com.agileflow.exception.ForbiddenOperationException;
 import com.agileflow.exception.ResourceNotFoundException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import com.agileflow.repository.TeamMemberRepository;
 import com.agileflow.repository.UserRepository;
+import com.agileflow.repository.ProjectMemberRepository;
+import com.agileflow.repository.ProjectRepository;
 import com.agileflow.validation.PasswordValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,6 +25,9 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
+    private final ProjectAccessService projectAccessService;
     private final PasswordEncoder passwordEncoder;
     private final PasswordValidator passwordValidator;
 
@@ -41,6 +48,26 @@ public class UserService {
     public List<UserDTO> listUsers(String q) {
         String query = (q == null || q.isBlank()) ? null : q.trim();
         return userRepository.search(query).stream().map(UserService::toUserDTO).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserSearchResultDTO> searchUsersForProject(String q, Long projectId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Projet introuvable"));
+        User actor = currentUser();
+        if (!projectAccessService.canManageProject(actor, project)) {
+            throw new ForbiddenOperationException("Vous ne pouvez pas inviter sur ce projet.");
+        }
+        String query = q == null || q.isBlank() ? null : q.trim();
+        List<Long> memberIds = projectMemberRepository.findUserIdsByProjectId(projectId);
+        Long ownerId = project.getManager() != null ? project.getManager().getId() : null;
+        return userRepository.search(query).stream()
+                .filter(User::isActif)
+                .filter(user -> ownerId == null || !ownerId.equals(user.getId()))
+                .filter(user -> !memberIds.contains(user.getId()))
+                .limit(5)
+                .map(user -> new UserSearchResultDTO(user.getId(), user.getNom(), user.getPrenom(), user.getEmail()))
+                .toList();
     }
 
     private User currentUser() {
@@ -86,6 +113,7 @@ public class UserService {
     @Transactional
     public UserDTO createUser(CreateUserRequest request) {
         passwordValidator.assertValid(request.password());
+        User.Role role = normalizeAssignableRole(request.role());
         if (userRepository.existsByEmail(request.email())) {
             throw new ConflictException("Email déjà utilisé.");
         }
@@ -94,7 +122,7 @@ public class UserService {
                 .nom(request.lastName())
                 .email(request.email())
                 .password(passwordEncoder.encode(request.password()))
-                .role(request.role())
+                .role(role)
                 .actif(true)
                 .build();
         userRepository.save(user);
@@ -113,7 +141,7 @@ public class UserService {
         }
         if (request.firstName() != null) u.setPrenom(request.firstName());
         if (request.lastName() != null) u.setNom(request.lastName());
-        if (request.role() != null) u.setRole(request.role());
+        if (request.role() != null) u.setRole(normalizeAssignableRole(request.role()));
         if (request.active() != null) u.setActif(request.active());
         if (request.password() != null && !request.password().isBlank()) {
             passwordValidator.assertValid(request.password());
@@ -129,5 +157,12 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur introuvable"));
         u.setActif(false);
         userRepository.save(u);
+    }
+
+    private User.Role normalizeAssignableRole(User.Role role) {
+        if (role == null || role == User.Role.ROLE_MANAGER) {
+            return User.Role.ROLE_DEVELOPER;
+        }
+        return role;
     }
 }

@@ -38,8 +38,8 @@ import { formatDateTime } from '../../utils/formatDate';
 import AddEditUserModal from './AddEditUserModal';
 
 const roleChip = (role: string) => {
-  const color = role === 'ROLE_ADMIN' ? 'error' : role === 'ROLE_MANAGER' ? 'warning' : 'info';
-  const label = role === 'ROLE_ADMIN' ? 'Admin' : role === 'ROLE_MANAGER' ? 'Manager' : 'Developpeur';
+  const color = role === 'ROLE_ADMIN' ? 'error' : 'info';
+  const label = role === 'ROLE_ADMIN' ? 'Admin' : 'Developpeur';
   return <Chip label={label} color={color} size="small" />;
 };
 
@@ -116,7 +116,6 @@ const UserManagement = ({ variant = 'full' }: UserManagementProps) => {
     total: rows.length,
     active: rows.filter((u) => u.active !== false).length,
     admins: rows.filter((u) => u.role === 'ROLE_ADMIN').length,
-    managers: rows.filter((u) => u.role === 'ROLE_MANAGER').length,
     developers: rows.filter((u) => u.role === 'ROLE_DEVELOPER').length,
   }), [rows]);
 
@@ -173,7 +172,6 @@ const UserManagement = ({ variant = 'full' }: UserManagementProps) => {
           <Select labelId="role-filter-label" label="Role" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
             <MenuItem value="ALL">Tous les roles</MenuItem>
             <MenuItem value="ROLE_ADMIN">Admins</MenuItem>
-            <MenuItem value="ROLE_MANAGER">Managers</MenuItem>
             <MenuItem value="ROLE_DEVELOPER">Developpeurs</MenuItem>
           </Select>
         </FormControl>
@@ -200,7 +198,6 @@ const UserManagement = ({ variant = 'full' }: UserManagementProps) => {
         <Chip label={`${counts.total} utilisateurs`} />
         <Chip label={`${counts.active} actifs`} color="success" variant="outlined" />
         <Chip label={`${counts.admins} admins`} color="error" variant="outlined" />
-        <Chip label={`${counts.managers} managers`} color="warning" variant="outlined" />
         <Chip label={`${counts.developers} developpeurs`} color="info" variant="outlined" />
       </Stack>
 

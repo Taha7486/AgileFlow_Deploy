@@ -15,7 +15,7 @@ import { Delete, Edit, ExpandMore, Layers } from '@mui/icons-material';
 import type { EpicItem, UserStoryItem } from '../../types';
 import EpicStatusChip from './EpicStatusChip';
 import UserStoryCard from './UserStoryCard';
-import { epicDeliveryPercent, epicPlannedPercent } from '../../utils/storyProgress';
+import { epicDeliveryPercent } from '../../utils/storyProgress';
 
 type Props = {
   epics: EpicItem[];
@@ -25,7 +25,6 @@ type Props = {
   onDeleteEpic: (epic: EpicItem) => void;
   onEdit: (story: UserStoryItem) => void;
   onDelete: (story: UserStoryItem) => void;
-  onRemoveFromSprint: (story: UserStoryItem) => void;
   onOpenStory: (story: UserStoryItem) => void;
 };
 
@@ -37,7 +36,6 @@ const BacklogEpicView = ({
   onDeleteEpic,
   onEdit,
   onDelete,
-  onRemoveFromSprint,
   onOpenStory,
 }: Props) => {
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
@@ -70,7 +68,6 @@ const BacklogEpicView = ({
             onOpen={onOpenStory}
             onEdit={onEdit}
             onDelete={onDelete}
-            onRemoveFromSprint={onRemoveFromSprint}
           />
         ))}
       </Stack>
@@ -81,8 +78,7 @@ const BacklogEpicView = ({
     <Stack spacing={2}>
       {epics.map((epic) => {
         const epicStories = storiesByEpic.get(epic.id) ?? [];
-        const plannedPct = epicPlannedPercent(epic);
-        const deliveryPct = epicDeliveryPercent(epic);
+    const deliveryPct = epicDeliveryPercent(epic);
         return (
           <Accordion
             key={epic.id}
@@ -110,8 +106,6 @@ const BacklogEpicView = ({
                     </Typography>
                   )}
                   <Stack spacing={0.5} sx={{ mt: 1, maxWidth: 480 }}>
-                    <Typography variant="caption" color="text.secondary">Planification sprint · {plannedPct}%</Typography>
-                    <LinearProgress variant="determinate" value={plannedPct} sx={{ height: 4, borderRadius: 2 }} />
                     <Typography variant="caption" color="text.secondary">Livraison (taches terminees) · {deliveryPct}%</Typography>
                     <LinearProgress variant="determinate" value={deliveryPct} color="success" sx={{ height: 4, borderRadius: 2 }} />
                   </Stack>

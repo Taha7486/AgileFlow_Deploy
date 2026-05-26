@@ -6,12 +6,8 @@ import {
   Card,
   CardContent,
   CircularProgress,
-  FormControl,
   Grid,
-  InputLabel,
-  MenuItem,
   Paper,
-  Select,
   Snackbar,
   Stack,
   ToggleButton,
@@ -31,15 +27,12 @@ import {
 } from 'recharts';
 import { Assessment, Download, Refresh } from '@mui/icons-material';
 import { exportAnalyticsPdf, fetchAnalytics } from '../../api/analyticsApi';
-import { fetchProjects } from '../../api/projectsApi';
-import { fetchSprintsByProject, type SprintItem } from '../../api/sprintsApi';
 import ActivityHeatmap from '../../components/analytics/ActivityHeatmap';
-import type { AnalyticsData, AnalyticsPeriod, ProjectListItem } from '../../types';
+import type { AnalyticsData, AnalyticsPeriod } from '../../types';
 
 const PERIOD_LABELS: Record<AnalyticsPeriod, string> = {
   WEEK: 'Semaine',
   MONTH: 'Mois',
-  SPRINT: 'Sprint',
 };
 
 const shortDate = (date: string) => date.slice(5);
@@ -72,10 +65,6 @@ const StatCard = ({
 
 const AnalyticsDashboard = () => {
   const [period, setPeriod] = useState<AnalyticsPeriod>('WEEK');
-  const [projects, setProjects] = useState<ProjectListItem[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<number | ''>('');
-  const [sprints, setSprints] = useState<SprintItem[]>([]);
-  const [selectedSprintId, setSelectedSprintId] = useState<number | ''>('');
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -84,46 +73,9 @@ const AnalyticsDashboard = () => {
 
   const requestParams = useMemo(() => ({
     period,
-    ...(period === 'SPRINT' && selectedSprintId ? { sprintId: selectedSprintId } : {}),
-  }), [period, selectedSprintId]);
-
-  const loadProjects = useCallback(async () => {
-    try {
-      const data = await fetchProjects();
-      setProjects(data);
-      setSelectedProjectId((current) => current || data[0]?.id || '');
-    } catch {
-      setProjects([]);
-    }
-  }, []);
-
-  const loadSprints = useCallback(async () => {
-    if (!selectedProjectId) {
-      setSprints([]);
-      setSelectedSprintId('');
-      return;
-    }
-    try {
-      const data = await fetchSprintsByProject(selectedProjectId);
-      setSprints(data);
-      setSelectedSprintId((current) => {
-        if (current && data.some((sprint) => sprint.id === current)) return current;
-        const activeSprint = data.find((sprint) => sprint.statut === 'EN_COURS');
-        return activeSprint?.id || data[0]?.id || '';
-      });
-    } catch {
-      setSprints([]);
-      setSelectedSprintId('');
-    }
-  }, [selectedProjectId]);
+  }), [period]);
 
   const loadAnalytics = useCallback(async () => {
-    if (period === 'SPRINT' && !selectedSprintId) {
-      setAnalytics(null);
-      setLoading(false);
-      setError('Selectionnez un sprint pour afficher les analytics.');
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
@@ -135,22 +87,13 @@ const AnalyticsDashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [period, requestParams, selectedSprintId]);
-
-  useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
-
-  useEffect(() => {
-    loadSprints();
-  }, [loadSprints]);
+  }, [requestParams]);
 
   useEffect(() => {
     loadAnalytics();
   }, [loadAnalytics]);
 
   const handleExport = async () => {
-    if (period === 'SPRINT' && !selectedSprintId) return;
     setExporting(true);
     try {
       const blob = await exportAnalyticsPdf(requestParams);
@@ -201,43 +144,12 @@ const AnalyticsDashboard = () => {
               ))}
             </ToggleButtonGroup>
 
-            {period === 'SPRINT' && (
-              <>
-                <FormControl size="small" sx={{ minWidth: 240 }}>
-                  <InputLabel id="analytics-project-label">Projet</InputLabel>
-                  <Select
-                    labelId="analytics-project-label"
-                    label="Projet"
-                    value={selectedProjectId}
-                    onChange={(event) => setSelectedProjectId(event.target.value as number)}
-                  >
-                    {projects.map((project) => (
-                      <MenuItem key={project.id} value={project.id}>{project.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <FormControl size="small" sx={{ minWidth: 220 }}>
-                  <InputLabel id="analytics-sprint-label">Sprint</InputLabel>
-                  <Select
-                    labelId="analytics-sprint-label"
-                    label="Sprint"
-                    value={selectedSprintId}
-                    disabled={sprints.length === 0}
-                    onChange={(event) => setSelectedSprintId(event.target.value as number)}
-                  >
-                    {sprints.map((sprint) => (
-                      <MenuItem key={sprint.id} value={sprint.id}>{sprint.nom}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </>
-            )}
           </Stack>
           <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
             <Button size="small" startIcon={<Refresh />} onClick={loadAnalytics} disabled={loading}>
               Actualiser
             </Button>
-            <Button size="small" variant="contained" startIcon={<Download />} onClick={handleExport} disabled={exporting || loading || (period === 'SPRINT' && !selectedSprintId)}>
+            <Button size="small" variant="contained" startIcon={<Download />} onClick={handleExport} disabled={exporting || loading}>
               {exporting ? 'Export...' : 'Exporter PDF'}
             </Button>
           </Stack>

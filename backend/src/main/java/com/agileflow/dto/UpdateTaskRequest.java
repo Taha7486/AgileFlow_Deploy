@@ -14,6 +14,8 @@ public record UpdateTaskRequest(
         @Size(max = 5000, message = "La description ne doit pas depasser 5000 caracteres.")
         String description,
 
+        Task.Type type,
+
         Task.Priorite priorite,
 
         Long assignedToId,
