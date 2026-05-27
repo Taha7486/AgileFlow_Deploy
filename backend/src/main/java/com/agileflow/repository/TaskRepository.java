@@ -9,11 +9,18 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificationExecutor<Task> {
     List<Task> findByAssignedToId(Long userId);
     List<Task> findBySprintId(Long sprintId);
     List<Task> findByParentTask_Id(Long parentTaskId);
+
+    Optional<Task> findByProject_IdAndGithubIssueNumber(Long projectId, Integer githubIssueNumber);
+
+    Optional<Task> findByGithubIssueNumber(Integer githubIssueNumber);
+
+    Optional<Task> findByGithubPrNumber(Integer githubPrNumber);
 
     long countByStatut(Task.Statut statut);
 

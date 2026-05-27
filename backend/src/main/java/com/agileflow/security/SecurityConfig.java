@@ -50,6 +50,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/invitations/validate").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/projects/invitations/preview").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/github/webhook/**").permitAll()
                 .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/topic/**").permitAll()

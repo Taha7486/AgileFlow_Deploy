@@ -30,6 +30,7 @@ import {
   ViewList,
   Timeline as TimelineIcon,
   ChatBubbleOutline,
+  GitHub,
   NotificationsOutlined,
 } from '@mui/icons-material';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -47,6 +48,7 @@ const DRAWER_WIDTH = 250;
 
 const NAV_ITEMS = [
   { label: 'DiagramFlow', path: '/diagrams', icon: <AccountTree /> },
+  { label: 'Developpement', path: '/development', icon: <GitHub /> },
   { label: 'Planification', path: '/planning', icon: <ViewList /> },
   { label: 'Kanban', path: '/kanban', icon: <ViewColumn /> },
   { label: 'Chronologie', path: '/timeline', icon: <TimelineIcon /> },

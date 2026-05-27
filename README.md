@@ -4,7 +4,8 @@ Plateforme Agile full-stack de gestion de projets, inspiree de Jira.
 
 AgileFlow permet de gerer des projets, membres, invitations, taches, epics,
 planification en liste, tableau Kanban, chronologie Gantt, resume projet,
-diagrammes collaboratifs, notifications, chat et rapports administrateur.
+diagrammes collaboratifs, integration GitHub, notifications, chat et rapports
+administrateur.
 
 ## Stack
 
@@ -81,6 +82,9 @@ jwt.expiration=900000
 jwt.refresh-expiration=604800000
 
 app.frontend-url=http://localhost:5173
+
+github.api.base-url=https://api.github.com
+github.webhook.base-url=${app.frontend-url}
 ```
 
 Secrets a garder hors Git :
@@ -156,6 +160,7 @@ Le menu non-admin est centre sur le projet actif selectionne dans le header :
 
 - Resume
 - DiagramFlow
+- Developpement
 - Planification
 - Kanban
 - Chronologie
@@ -191,6 +196,56 @@ Le selecteur de projet dans le header permet :
 - Si l'utilisateur n'existe pas, il recoit un lien d'inscription avec token.
 - Les invitations recues sont visibles dans le Resume projet.
 
+### Integration GitHub
+
+Routes API :
+
+```text
+POST   /api/github/projects/{projectId}/connect
+DELETE /api/github/projects/{projectId}/disconnect
+GET    /api/github/projects/{projectId}/integration
+POST   /api/github/projects/{projectId}/sync
+GET    /api/github/projects/{projectId}/pull-requests
+GET    /api/github/projects/{projectId}/commits
+GET    /api/github/projects/{projectId}/branches
+GET    /api/github/projects/{projectId}/development
+GET    /api/github/tasks/{taskId}/commits
+GET    /api/github/tasks/{taskId}/development-panel
+GET    /api/github/tasks/{taskId}/branches
+GET    /api/github/tasks/{taskId}/suggest-branch-name
+POST   /api/github/tasks/{taskId}/create-branch
+POST   /api/github/webhook/{projectId}
+```
+
+Fonctionnalites :
+
+- lier un depot GitHub a un projet ;
+- synchroniser les issues GitHub vers les taches AgileFlow ;
+- mapper les labels GitHub `epic`, `bug`, `feature` et `enhancement` vers
+  `typeTache` ;
+- recuperer les pull requests ouvertes et les commits recents ;
+- lier une PR a une tache via les patterns `#123`, `AGF-123`, `task/123` ;
+- traiter les webhooks `issues`, `pull_request` et `push` avec validation
+  HMAC `X-Hub-Signature-256` ;
+- afficher l'activite GitHub dans le Resume ;
+- afficher une page Developpement dediee au projet actif ;
+- creer une branche GitHub depuis une tache ;
+- afficher branches, PRs, checks et commits dans le panneau Developpement
+  d'une tache ;
+- afficher issues, PRs et commits dans le detail d'une tache ;
+- afficher un badge PR compact sur les cartes Kanban.
+- transitions automatiques : branche creee -> IN_PROGRESS, PR ouverte ->
+  REVIEW, PR mergee -> DONE, PR fermee sans merge -> IN_PROGRESS, commit
+  `closes/fixes/resolves #N` -> DONE.
+
+Securite :
+
+- le token GitHub est stocke uniquement cote backend dans `GitHubIntegration` ;
+- le token n'est jamais renvoye dans les DTOs frontend ;
+- `connect`, `disconnect` et `sync` sont reserves au proprietaire ou admin du
+  projet ;
+- l'endpoint webhook est public mais valide par signature HMAC.
+
 ### Equipe
 
 Route : `/teams`
@@ -221,6 +276,8 @@ Widgets :
 - types de travail ;
 - charge equipe ;
 - progression des epics.
+- panneau d'integration GitHub.
+- activite GitHub si un depot est connecte.
 
 ### Planification
 
@@ -233,6 +290,7 @@ Route : `/planning`
 - Creation de sous-taches.
 - Edition inline et panneau de detail centre dans la zone tableau.
 - Assignation limitee aux membres du projet.
+- Detail GitHub d'une tache : issue liee, PR liee, commits mentionnant la tache.
 - Selection multiple limitee a la suppression.
 - Pas de colonne labels/actions dans la vue principale.
 - Pas de logique sprint dans l'interface actuelle.
@@ -248,6 +306,7 @@ Route : `/kanban`
 - Les epics ne sont pas affichees comme cartes principales.
 - Les sous-taches ne sont pas affichees comme cartes principales.
 - Les taches rattachees a une epic affichent le contexte epic.
+- Les cartes affichent un badge `PR #N` quand une pull request est liee.
 
 ### Chronologie
 
@@ -325,6 +384,7 @@ Groupes principaux :
 /api/projects/{projectId}/members
 /api/projects/{projectId}/members/stats
 /api/projects/{projectId}/summary
+/api/github
 /api/tasks
 /api/tasks/planning
 /api/tasks/kanban

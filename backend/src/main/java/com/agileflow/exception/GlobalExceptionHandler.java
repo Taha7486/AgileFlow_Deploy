@@ -47,6 +47,26 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(GitHubIntegrationNotFoundException.class)
+    public ResponseEntity<Map<String, String>> githubIntegrationNotFound(GitHubIntegrationNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(GitHubRepositoryNotFoundException.class)
+    public ResponseEntity<Map<String, String>> githubRepositoryNotFound(GitHubRepositoryNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(GitHubWebhookSignatureException.class)
+    public ResponseEntity<Map<String, String>> githubSignature(GitHubWebhookSignatureException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(GitHubApiException.class)
+    public ResponseEntity<Map<String, String>> githubApi(GitHubApiException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> runtime(RuntimeException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));

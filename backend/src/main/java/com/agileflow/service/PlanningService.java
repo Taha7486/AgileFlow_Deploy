@@ -411,7 +411,11 @@ public class PlanningService {
                 task.getParentTask() != null ? task.getParentTask().getTitre() : null,
                 sousTaskes,
                 task.getSousTaskes() != null ? task.getSousTaskes().size() : 0,
-                (int) doneCount
+                (int) doneCount,
+                task.getGithubIssueNumber(),
+                task.getGithubIssueUrl(),
+                task.getGithubPrNumber(),
+                task.getGithubPrUrl()
         );
     }
 

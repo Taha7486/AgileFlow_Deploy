@@ -635,3 +635,17 @@ export type {
   TypesOfWork,
   WorkloadItem,
 } from './projectSummary.types';
+
+export type {
+  Branch,
+  Commit,
+  CreateBranchRequest,
+  DevelopmentPanelData,
+  GitHubCommit,
+  GitHubConnectRequest,
+  GitHubIntegration,
+  GitHubIssue,
+  GitHubPullRequest,
+  ProjectDevelopmentData,
+  PullRequest,
+} from './github';

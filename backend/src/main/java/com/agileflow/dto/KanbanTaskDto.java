@@ -23,6 +23,10 @@ public record KanbanTaskDto(
         Long parentTaskId,
         String parentTaskTitre,
         String epicTitre,
+        Integer githubIssueNumber,
+        String githubIssueUrl,
+        Integer githubPrNumber,
+        String githubPrUrl,
         String dateCreation,
         String dateMiseAJour,
         String updatedAgo

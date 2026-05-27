@@ -4,6 +4,31 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    dedupe: [
+      'react',
+      'react-dom',
+      '@emotion/react',
+      '@emotion/styled',
+      '@mui/material',
+      '@mui/system',
+      '@mui/styled-engine',
+    ],
+  },
+  optimizeDeps: {
+    force: true,
+    include: [
+      '@emotion/react',
+      '@emotion/styled',
+      '@mui/material',
+      '@mui/material/Autocomplete',
+      '@mui/material/Menu',
+      '@mui/material/Popper',
+      '@mui/material/Tooltip',
+      '@mui/system',
+      '@mui/styled-engine',
+    ],
+  },
   define: {
     global: 'window',
   },

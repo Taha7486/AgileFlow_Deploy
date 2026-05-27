@@ -33,6 +33,10 @@ export interface KanbanTask {
   parentTaskId: number | null;
   parentTaskTitre: string | null;
   epicTitre: string | null;
+  githubIssueNumber: number | null;
+  githubIssueUrl: string | null;
+  githubPrNumber: number | null;
+  githubPrUrl: string | null;
   commentCount: number;
   sousTaskeCount: number;
   sousTaskesDoneCount: number;

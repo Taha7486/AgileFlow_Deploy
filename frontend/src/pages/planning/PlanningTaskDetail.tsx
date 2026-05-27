@@ -29,6 +29,7 @@ import { ALLOWED_CHILD_TYPES, PlanningTask, TaskPriorite, TaskStatut } from '../
 import { formatDateFR, PRIORITE_CONFIG, STATUT_CONFIG, userFullName } from '../../utils/planningHelpers';
 import TaskTypeIcon from '../../components/planning/TaskTypeIcon';
 import CreateSubtaskModal from '../../components/planning/CreateSubtaskModal';
+import GitHubTaskDetail from '../../components/github/GitHubTaskDetail';
 
 interface Props {
   taskId: number;
@@ -188,6 +189,14 @@ const PlanningTaskDetail = ({ taskId, onClose }: Props) => {
           onChange={(e) => setDescription(e.target.value)}
           onBlur={saveDescription}
           sx={{ mb: 2 }}
+        />
+
+        <GitHubTaskDetail
+          taskId={task.id}
+          githubIssueNumber={task.githubIssueNumber}
+          githubIssueUrl={task.githubIssueUrl}
+          githubPrNumber={task.githubPrNumber}
+          githubPrUrl={task.githubPrUrl}
         />
 
         <Typography variant="subtitle2" color="text.secondary" fontWeight={800} sx={{ textTransform: 'uppercase', mb: 1 }}>Details</Typography>

@@ -52,6 +52,14 @@ public class Task {
     @Builder.Default
     private LocalDateTime dateCreation = LocalDateTime.now();
     private LocalDateTime dateMiseAJour;
+    @Column(name = "github_issue_number")
+    private Integer githubIssueNumber;
+    @Column(name = "github_issue_url")
+    private String githubIssueUrl;
+    @Column(name = "github_pr_number")
+    private Integer githubPrNumber;
+    @Column(name = "github_pr_url")
+    private String githubPrUrl;
     @Builder.Default
     private boolean isUrgent = false;
     @Builder.Default

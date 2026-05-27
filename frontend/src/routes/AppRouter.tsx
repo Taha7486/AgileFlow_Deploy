@@ -33,6 +33,7 @@ const DiagramEditorPage = lazy(() => import('../pages/DiagramFlow/DiagramEditorP
 const PlanningPage = lazy(() => import('../pages/planning/PlanningPage'));
 const TimelinePage = lazy(() => import('../pages/timeline/TimelinePage'));
 const ProjectSummaryPage = lazy(() => import('../pages/projects/summary/ProjectSummaryPage'));
+const DevelopmentPage = lazy(() => import('../pages/development/DevelopmentPage'));
 
 const LazyPage = ({ children }: { children: ReactNode }) => (
   <Suspense
@@ -115,6 +116,7 @@ const AppRouter = () => (
         <Route path="/teams" element={<TeamsPage />} />
         <Route path="/teams/:id" element={<TeamDetailsPage />} />
         <Route path="/planning" element={<LazyPage><PlanningPage /></LazyPage>} />
+        <Route path="/development" element={<LazyPage><DevelopmentPage /></LazyPage>} />
         <Route path="/timeline" element={<LazyPage><TimelinePage /></LazyPage>} />
         <Route path="/backlog" element={<BacklogPage />} />
         <Route path="/kanban" element={<KanbanBoard />} />

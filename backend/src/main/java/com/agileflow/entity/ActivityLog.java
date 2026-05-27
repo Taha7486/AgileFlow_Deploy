@@ -86,6 +86,12 @@ public class ActivityLog {
         STORY_UPDATED,
         STORY_DELETED,
         STORY_PLANNED,
-        STORY_UNPLANNED
+        STORY_UNPLANNED,
+        GITHUB_COMMIT,
+        GITHUB_PR_MERGED,
+        GITHUB_BRANCH_CREATED,
+        GITHUB_PR_OPENED,
+        GITHUB_PR_CLOSED,
+        GITHUB_COMMIT_CLOSES
     }
 }

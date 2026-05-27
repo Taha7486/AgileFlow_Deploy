@@ -27,6 +27,10 @@ public record PlanningTaskDto(
         String parentTaskTitre,
         List<PlanningTaskDto> sousTaskes,
         int sousTaskeCount,
-        int sousTaskesDoneCount
+        int sousTaskesDoneCount,
+        Integer githubIssueNumber,
+        String githubIssueUrl,
+        Integer githubPrNumber,
+        String githubPrUrl
 ) {
 }

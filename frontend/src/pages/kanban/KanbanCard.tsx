@@ -15,7 +15,7 @@ import {
   Star,
   SubdirectoryArrowRight,
 } from '@mui/icons-material';
-import { Avatar, Box, Chip, IconButton, Paper, Tooltip, Typography } from '@mui/material';
+import { Avatar, Box, Chip, IconButton, Link, Paper, Tooltip, Typography } from '@mui/material';
 import { PRIORITE_CONFIG, TYPE_CONFIG } from '../../types/kanban.types';
 import type { KanbanTask, KanbanTypeTache } from '../../types/kanban.types';
 import { getLabelColor } from '../../utils/kanbanHelpers';
@@ -159,6 +159,22 @@ const KanbanCard = ({ task, isDragging: overlayDragging = false }: Props) => {
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {task.githubPrNumber && task.githubPrUrl && (
+            <Link
+              href={task.githubPrUrl}
+              target="_blank"
+              rel="noreferrer"
+              underline="none"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <Chip
+                label={`PR #${task.githubPrNumber}`}
+                size="small"
+                color={task.statut === 'DONE' ? 'success' : 'warning'}
+                sx={{ height: 20, fontSize: 10, fontWeight: 800 }}
+              />
+            </Link>
+          )}
           {task.statut === 'DONE' && <CheckCircle sx={{ fontSize: 16, color: '#00875A' }} />}
           <IconButton
             size="small"

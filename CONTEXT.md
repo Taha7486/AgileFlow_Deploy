@@ -15,6 +15,7 @@ The current product scope includes:
 - project CRUD from the header selector;
 - project invitations by email;
 - project roles and member management;
+- GitHub repository integration;
 - project summary dashboard;
 - planning list;
 - Kanban board;
@@ -101,6 +102,7 @@ Important entities:
 | `Project` | Agile project and owner |
 | `ProjectMember` | Membership and project role |
 | `ProjectInvitation` | Pending project invitation with token and role |
+| `GitHubIntegration` | Linked GitHub repository, token, webhook id and secret |
 | `Task` | Main work item with type, status, priority, parent/children |
 | `TypeTache` | EPIC, STORY, TASK, FEATURE, BUG, SUBTASK |
 | `Sprint` | Legacy support; hidden from current main UI |
@@ -122,6 +124,11 @@ Recent schema concepts:
 - project invitation role
 - `saved_views`
 - `project_invitations`
+- `github_integrations`
+- `tasks.github_issue_number`
+- `tasks.github_issue_url`
+- `tasks.github_pr_number`
+- `tasks.github_pr_url`
 
 ## 5. Authentication and Security
 
@@ -140,6 +147,8 @@ Important config:
 ```properties
 jwt.secret=${JWT_SECRET:change-me-local-dev-secret}
 app.frontend-url=http://localhost:5173
+github.api.base-url=https://api.github.com
+github.webhook.base-url=${app.frontend-url}
 ```
 
 OAuth provider secrets and Gmail credentials must be supplied through local
@@ -192,6 +201,7 @@ Important services:
 | `TimelineService` | Gantt data, date update, epic creation |
 | `ProjectSummaryService` | Project summary dashboard |
 | `TaskDeadlineHierarchyService` | Parent/epic deadline >= max child deadline |
+| `GitHubService` | Repository connect/disconnect, issue sync, PR/commit fetch, webhook processing |
 | `DiagramService` | Diagram CRUD and real-time persistence |
 | `AnalyticsService` | Admin analytics and PDF export |
 | `StatsService` | Stats page metrics and exports |
@@ -258,6 +268,15 @@ POST  /api/timeline/epics
 Other groups:
 
 ```text
+POST   /api/github/projects/{projectId}/connect
+DELETE /api/github/projects/{projectId}/disconnect
+GET    /api/github/projects/{projectId}/integration
+POST   /api/github/projects/{projectId}/sync
+GET    /api/github/projects/{projectId}/pull-requests
+GET    /api/github/projects/{projectId}/commits
+GET    /api/github/tasks/{taskId}/commits
+POST   /api/github/webhook/{projectId}
+
 GET /api/diagrams
 GET /api/analytics
 GET /api/analytics/export.pdf
@@ -334,6 +353,7 @@ Important stores:
 | `kanbanStore` | Kanban board data and DnD state |
 | `timelineStore` | Gantt data and view state |
 | `projectSummaryStore` | Summary dashboard state |
+| `githubStore` | GitHub integration, pull requests and commits |
 | `diagramStore` | Diagram editor state |
 
 There are legacy auth store references in the codebase. Both auth stores must
@@ -350,6 +370,7 @@ read `localStorage.user` safely to avoid blank pages.
 | `/dashboard` | Redirect/fallback to active project summary |
 | `/projects` | Legacy/list route, no longer main sidebar entry |
 | `/projects/:projectId/summary` | Project summary dashboard |
+| `/development` | GitHub development view for the active project |
 | `/planning` | Jira-style list planning |
 | `/kanban` | Kanban board |
 | `/timeline` | Chronologie/Gantt |
@@ -368,6 +389,7 @@ Current non-admin sidebar:
 ```text
 Resume
 DiagramFlow
+Developpement
 Planification
 Kanban
 Chronologie
@@ -415,6 +437,8 @@ Contains:
 - KPI cards.
 - Status donut.
 - Recent activity without the open-in-new icon.
+- GitHub integration panel.
+- GitHub activity section when a repository is linked.
 - Priority breakdown.
 - Types of work.
 - Team workload.
@@ -466,6 +490,7 @@ Rules:
 - task details panel is centered inside the table area;
 - assignee choices are limited to project members;
 - reporter means the user who assigned/reported the task.
+- task detail includes GitHub issue, PR and commits when linked.
 
 ### Kanban
 
@@ -480,6 +505,7 @@ Rules:
 - epics are not rendered as cards;
 - subtasks are not rendered as cards;
 - tasks belonging to an epic show epic context;
+- tasks linked to a pull request show a compact `PR #N` badge;
 - board uses fixed statuses TODO, IN_PROGRESS, REVIEW, DONE;
 - drag and drop updates status;
 - header project tabs/extra toolbar were removed for a cleaner shared layout.
@@ -516,6 +542,58 @@ Important current behavior:
 - completed task metrics are calculated from `tasks` with `statut = DONE`;
 - activity metrics still come from `activity_logs`;
 - direct project tasks are included, not only sprint tasks.
+
+### GitHub Integration
+
+Backend:
+
+- Entity: `GitHubIntegration`.
+- Entity: `GitHubTaskBranch` for task-linked branches.
+- Repository: `GitHubIntegrationRepository`.
+- Repository: `GitHubTaskBranchRepository`.
+- Service: `GitHubService`.
+- Controller: `GitHubController`.
+- Public webhook endpoint: `POST /api/github/webhook/{projectId}`.
+- Development page endpoint: `GET /api/github/projects/{projectId}/development`.
+- Task development panel endpoint: `GET /api/github/tasks/{taskId}/development-panel`.
+- Branch creation endpoint: `POST /api/github/tasks/{taskId}/create-branch`.
+- Webhook validation: `X-Hub-Signature-256` HMAC-SHA256.
+- GitHub token and webhook secret are never exposed in DTOs.
+
+Synchronization rules:
+
+- issue label `epic` -> `TypeTache.EPIC`;
+- issue label `bug` -> `TypeTache.BUG`;
+- issue label `feature` or `enhancement` -> `TypeTache.FEATURE`;
+- other issues -> `TypeTache.TASK`;
+- GitHub issue `open` -> `Task.Statut.TODO`;
+- GitHub issue `closed` -> `Task.Statut.DONE`;
+- duplicate prevention uses `Task.githubIssueNumber`.
+
+Webhook behavior:
+
+- `issues/opened`: create or update AgileFlow task;
+- `issues/closed`: set linked task to DONE;
+- `issues/reopened`: set linked task to TODO;
+- `create` branch events: link branch to mentioned task and move TODO tasks to IN_PROGRESS;
+- `pull_request/opened`: link PR to mentioned task and move it to REVIEW;
+- `pull_request/synchronize`: refresh the linked PR;
+- `pull_request/closed` with `merged=true`: set linked task DONE and log `GITHUB_PR_MERGED`;
+- `pull_request/closed` without merge: set linked task to IN_PROGRESS;
+- `push`: create `GITHUB_COMMIT` activity logs for mentioned tasks;
+- `push` with `closes/fixes/resolves #N`, `AGF-N` or `task/N`: set task DONE.
+
+Frontend:
+
+- API: `frontend/src/api/github.ts`.
+- Types: `frontend/src/types/github.ts`.
+- Store: `frontend/src/store/githubStore.ts`.
+- Components:
+  - `GitHubIntegrationPanel`;
+  - `GitHubActivitySection`;
+  - `GitHubTaskDetail`;
+  - `GitHubDevelopmentPanel`.
+- Page: `frontend/src/pages/development/DevelopmentPage.tsx`.
 
 ### Activity Logs
 

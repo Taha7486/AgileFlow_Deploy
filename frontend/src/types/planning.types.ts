@@ -42,6 +42,10 @@ export interface PlanningTask {
   sousTaskes: PlanningTask[];
   sousTaskeCount: number;
   sousTaskesDoneCount: number;
+  githubIssueNumber: number | null;
+  githubIssueUrl: string | null;
+  githubPrNumber: number | null;
+  githubPrUrl: string | null;
 }
 
 export interface PlanningGroup {

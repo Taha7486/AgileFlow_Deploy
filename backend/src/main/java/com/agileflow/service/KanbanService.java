@@ -66,7 +66,7 @@ public class KanbanService {
         Project project = projectAccessService.getProjectOrThrow(projectId);
         projectAccessService.assertProjectAccess(actor, project);
 
-        Sprint sprint = resolveSprint(projectId, sprintId);
+        Sprint sprint = sprintId != null ? resolveSprint(projectId, sprintId) : null;
         List<Task> tasks = taskRepository.findAll(buildSpecification(projectId, sprint != null ? sprint.getId() : null, assigneeId, search, priorite))
                 .stream()
                 .filter(task -> task.getTypeTache() != TypeTache.EPIC)
@@ -88,7 +88,7 @@ public class KanbanService {
         Project project = projectAccessService.getProjectOrThrow(request.projectId());
         projectAccessService.assertCanEditProjectContent(actor, project);
 
-        Sprint sprint = resolveSprint(project.getId(), request.sprintId());
+        Sprint sprint = request.sprintId() != null ? resolveSprint(project.getId(), request.sprintId()) : null;
         Task.Statut statut = parseEnum(request.statut(), Task.Statut.TODO, Task.Statut.class);
         Task.Priorite priorite = parseEnum(request.priorite(), Task.Priorite.MEDIUM, Task.Priorite.class);
         TypeTache typeTache = parseEnum(request.typeTache(), TypeTache.TASK, TypeTache.class);
@@ -177,6 +177,10 @@ public class KanbanService {
                 task.getParentTask() != null ? task.getParentTask().getId() : null,
                 task.getParentTask() != null ? task.getParentTask().getTitre() : null,
                 epicTitle(task),
+                task.getGithubIssueNumber(),
+                task.getGithubIssueUrl(),
+                task.getGithubPrNumber(),
+                task.getGithubPrUrl(),
                 toIso(task.getDateCreation()),
                 toIso(task.getDateMiseAJour()),
                 updatedAgo(task.getDateMiseAJour() != null ? task.getDateMiseAJour() : task.getDateCreation())
@@ -254,12 +258,9 @@ public class KanbanService {
     }
 
     private Sprint resolveSprint(Long projectId, Long sprintId) {
-        if (sprintId != null) {
-            return sprintRepository.findById(sprintId)
-                    .filter(sprint -> sprint.getProject() != null && Objects.equals(sprint.getProject().getId(), projectId))
-                    .orElseThrow(() -> new ResourceNotFoundException("Sprint introuvable pour ce projet"));
-        }
-        return sprintRepository.findFirstByProjectIdAndStatut(projectId, Sprint.Statut.ACTIF).orElse(null);
+        return sprintRepository.findById(sprintId)
+                .filter(sprint -> sprint.getProject() != null && Objects.equals(sprint.getProject().getId(), projectId))
+                .orElseThrow(() -> new ResourceNotFoundException("Sprint introuvable pour ce projet"));
     }
 
     private Comparator<Task> taskComparator() {
