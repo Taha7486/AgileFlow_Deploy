@@ -12,6 +12,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.crypto.Mac;
@@ -25,15 +26,16 @@ import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.net.URLEncoder;
 
 @Service
 @RequiredArgsConstructor
 public class GitHubService {
 
-    private static final Pattern TASK_REF_PATTERN = Pattern.compile("(?i)(?:#|AGF-|task/|fixes\\s+#|closes\\s+#|refs\\s+#)(\\d+)");
+    private static final Pattern TASK_REF_PATTERN = Pattern.compile("(?i)(?:#|[A-Z][A-Z0-9]{1,9}-|task/)(\\d+)");
     private static final Pattern MERGE_PR_PATTERN = Pattern.compile("(?i)merge\\s+pull\\s+request\\s+#(\\d+)");
-    private static final Pattern BRANCH_TASK_PATTERN = Pattern.compile("(?i)(?:feature/|fix/|hotfix/|bugfix/|task/)?AGF-(\\d+)|(?:feature/|fix/|hotfix/|bugfix/|task/)(\\d+)");
-    private static final Pattern CLOSING_COMMIT_PATTERN = Pattern.compile("(?i).*\\b(closes?|closed|fixes?|fixed|resolves?)\\s+(?:AGF-|#|task/)(\\d+).*");
+    private static final Pattern BRANCH_TASK_PATTERN = Pattern.compile("(?i)(?:feature/|fix/|hotfix/|bugfix/|task/)?[A-Z][A-Z0-9]{1,9}-(\\d+)|(?:feature/|fix/|hotfix/|bugfix/|task/)(\\d+)");
+    private static final Pattern CLOSING_COMMIT_PATTERN = Pattern.compile("(?i).*\\b(closes?|closed|fixes?|fixed|resolves?)\\s+(?:[A-Z][A-Z0-9]{1,9}-|#|task/)(\\d+).*");
     private static final String HMAC_ALGORITHM = "HmacSHA256";
 
     private final GitHubIntegrationRepository integrationRepository;
@@ -149,7 +151,7 @@ public class GitHubService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tache introuvable"));
         String slug = slugify(task.getTitre());
-        return "feature/AGF-" + taskId + (slug.isBlank() ? "" : "-" + slug);
+        return "feature/" + issueKey(task) + (slug.isBlank() ? "" : "-" + slug);
     }
 
     @Transactional
@@ -168,14 +170,12 @@ public class GitHubService {
             throw new IllegalArgumentException("Nom de branche invalide");
         }
         String baseBranch = fromBranch == null || fromBranch.isBlank() ? "main" : fromBranch.trim();
+        if (branchExists(integration, normalizedBranchName)) {
+            throw new IllegalArgumentException("La branche '" + normalizedBranchName + "' existe deja sur GitHub");
+        }
 
         try {
-            JsonNode refResponse = githubGet(integration, "/repos/%s/%s/git/ref/heads/%s".formatted(
-                    integration.getRepoOwner(),
-                    integration.getRepoName(),
-                    baseBranch
-            ));
-            String sha = refResponse.path("object").path("sha").asText();
+            String sha = getBranchSha(integration, baseBranch, "Branche de base introuvable: " + baseBranch);
             Map<String, String> body = Map.of(
                     "ref", "refs/heads/" + normalizedBranchName,
                     "sha", sha
@@ -193,8 +193,65 @@ public class GitHubService {
             log(project.getManager(), project, task, ActivityLog.Action.GITHUB_BRANCH_CREATED,
                     "Branche GitHub creee: " + normalizedBranchName + " -> IN_PROGRESS");
             return new BranchDTO(normalizedBranchName, sha, task.getId(), LocalDateTime.now());
-        } catch (HttpClientErrorException.UnprocessableEntity ex) {
-            throw new IllegalArgumentException("La branche '" + normalizedBranchName + "' existe deja sur GitHub");
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException(toFrenchGitHubWriteError(ex.getMessage(), "Impossible de creer la branche GitHub"));
+        } catch (GitHubRepositoryNotFoundException ex) {
+            throw new IllegalStateException("Token GitHub invalide ou depot inaccessible. Reconnectez le depot.");
+        }
+    }
+
+    @Transactional
+    public GitHubPullRequestDTO createPullRequestForTask(Long taskId, CreatePullRequestRequest request, Long currentUserId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tache introuvable"));
+        Project project = resolveProject(task);
+        if (project == null) {
+            throw new ResourceNotFoundException("Projet de la tache introuvable");
+        }
+        projectAccessService.assertCanEditProjectContent(projectAccessService.currentUser(), project);
+        GitHubIntegration integration = getIntegrationEntity(project.getId());
+
+        String headBranch = request.headBranch() != null ? request.headBranch().trim() : "";
+        String baseBranch = request.baseBranch() == null || request.baseBranch().isBlank() ? "main" : request.baseBranch().trim();
+        String title = request.title() == null || request.title().isBlank()
+                ? issueKey(task) + " " + task.getTitre()
+                : request.title().trim();
+        String body = request.body() == null || request.body().isBlank()
+                ? "Liee a la tache " + issueKey(task)
+                : request.body().trim();
+        if (headBranch.isBlank() || headBranch.contains(" ")) {
+            throw new IllegalArgumentException("Branche source invalide");
+        }
+        if (headBranch.equals(baseBranch)) {
+            throw new IllegalArgumentException("La branche source doit etre differente de la branche cible");
+        }
+        getBranchSha(integration, headBranch, "Branche source introuvable: " + headBranch);
+        getBranchSha(integration, baseBranch, "Branche cible introuvable: " + baseBranch);
+        if (openPullRequestExists(integration, headBranch, baseBranch)) {
+            throw new IllegalArgumentException("Une pull request ouverte existe deja entre " + headBranch + " et " + baseBranch);
+        }
+
+        Map<String, String> payload = new LinkedHashMap<>();
+        payload.put("title", title);
+        payload.put("head", headBranch);
+        payload.put("base", baseBranch);
+        payload.put("body", body);
+
+        try {
+            JsonNode pr = githubExchange(integration, HttpMethod.POST, "/repos/%s/%s/pulls".formatted(
+                    integration.getRepoOwner(),
+                    integration.getRepoName()
+            ), payload);
+            linkPullRequestToTask(integration, task, pr, false);
+            task.setStatut(Task.Statut.REVIEW);
+            taskRepository.save(task);
+            saveTaskBranchIfNotExists(task, headBranch, pr.path("head").path("sha").asText(""));
+            log(project.getManager(), project, task, ActivityLog.Action.GITHUB_PR_OPENED,
+                    "PR GitHub creee: #" + pr.path("number").asInt() + " -> REVIEW");
+            notifyAssignee(task, "Pull request GitHub creee pour la tache " + issueKey(task));
+            return toPullRequestDto(integration, pr);
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException(toFrenchGitHubWriteError(ex.getMessage(), "Impossible de creer la PR GitHub"));
         } catch (GitHubRepositoryNotFoundException ex) {
             throw new IllegalStateException("Token GitHub invalide ou depot inaccessible. Reconnectez le depot.");
         }
@@ -229,27 +286,43 @@ public class GitHubService {
                 .orElseThrow(() -> new ResourceNotFoundException("Tache introuvable"));
         Project project = resolveProject(task);
         List<BranchDTO> branches = getTaskBranches(taskId);
-        List<GitHubCommitDTO> commits = project == null ? List.of() : getCommitsForTask(taskId);
-        List<GitHubPullRequestDTO> prs = project == null ? List.of() : getProjectPullRequests(project.getId()).stream()
-                .filter(pr -> Objects.equals(pr.linkedTaskId(), taskId)
-                        || Objects.equals(task.getGithubPrNumber(), pr.number()))
-                .toList();
-        return new DevelopmentPanelDTO(taskId, task.getTitre(), name(task.getStatut()), branches, prs, commits);
+        List<GitHubCommitDTO> commits = List.of();
+        List<GitHubPullRequestDTO> prs = List.of();
+        if (project != null) {
+            try {
+                commits = getCommitsForTask(taskId);
+            } catch (RuntimeException ignored) {
+                // Le panel reste utilisable meme si l'API GitHub est temporairement indisponible.
+            }
+            try {
+                prs = getProjectPullRequests(project.getId()).stream()
+                        .filter(pr -> Objects.equals(pr.linkedTaskId(), taskId)
+                                || Objects.equals(task.getGithubPrNumber(), pr.number()))
+                        .toList();
+                branches = mergeBranches(branches, prs);
+            } catch (RuntimeException ignored) {
+                // Meme logique : on affiche le reste du panel au lieu de bloquer l'UI.
+            }
+        }
+        return new DevelopmentPanelDTO(taskId, issuePrefix(project), task.getTitre(), name(task.getStatut()), branches, prs, commits);
     }
 
     @Transactional(readOnly = true)
     public ProjectDevelopmentDTO getProjectDevelopment(Long projectId, int page, int size) {
         Optional<GitHubIntegration> optionalIntegration = integrationRepository.findByProject_Id(projectId);
         if (optionalIntegration.isEmpty()) {
-            return new ProjectDevelopmentDTO(projectId, null, false, List.of(), List.of(), List.of(), List.of(), 0, 0, 0, 0, page, size, 0);
+            Project project = projectRepository.findById(projectId).orElse(null);
+            return new ProjectDevelopmentDTO(projectId, issuePrefix(project), null, false, List.of(), List.of(), List.of(), List.of(), 0, 0, 0, 0, page, size, 0);
         }
         GitHubIntegration integration = optionalIntegration.get();
+        Project project = integration.getProject();
         List<GitHubPullRequestDTO> allPrs = getProjectPullRequests(projectId);
         List<GitHubPullRequestDTO> openPrs = allPrs.stream().filter(pr -> "open".equals(pr.state())).toList();
         List<GitHubPullRequestDTO> mergedPrs = allPrs.stream().filter(GitHubPullRequestDTO::merged).toList();
-        List<BranchDTO> branches = gitHubTaskBranchRepository.findByTaskProjectId(projectId).stream()
+        List<BranchDTO> storedBranches = gitHubTaskBranchRepository.findByTaskProjectId(projectId).stream()
                 .map(branch -> new BranchDTO(branch.getBranchName(), branch.getSha(), branch.getTask().getId(), branch.getCreatedAt()))
                 .toList();
+        List<BranchDTO> branches = mergeBranches(storedBranches, allPrs);
         List<GitHubCommitDTO> commits = integration.isSyncCommits()
                 ? fetchRecentCommitsIncludingPullRequests(integration).stream().limit(20).toList()
                 : List.of();
@@ -260,6 +333,7 @@ public class GitHubService {
         int failingChecks = (int) allPrs.stream().filter(pr -> "failure".equals(pr.checksStatus())).count();
         return new ProjectDevelopmentDTO(
                 projectId,
+                issuePrefix(project),
                 repoFullName(integration),
                 true,
                 pagedOpenPrs,
@@ -334,7 +408,7 @@ public class GitHubService {
                 log(project.getManager(), project, target, ActivityLog.Action.GITHUB_PR_OPENED,
                         "PR GitHub ouverte: #" + pr.path("number").asInt() + " -> REVIEW");
             }
-            notifyAssignee(target, "Pull request GitHub liee a la tache KAN-" + target.getId());
+            notifyAssignee(target, "Pull request GitHub liee a la tache " + issueKey(target));
         }
 
         if ("closed".equals(action) && pr.path("merged").asBoolean(false)) {
@@ -432,6 +506,11 @@ public class GitHubService {
             if (task.isPresent()) {
                 boolean merged = isMergedPullRequest(pr);
                 linkPullRequestToTask(integration, task.get(), pr, merged);
+                saveTaskBranchIfNotExists(
+                        task.get(),
+                        pr.path("head").path("ref").asText(""),
+                        pr.path("head").path("sha").asText("")
+                );
                 linked++;
             }
         }
@@ -480,14 +559,18 @@ public class GitHubService {
             ));
             for (JsonNode pr : prs) {
                 int prNumber = pr.path("number").asInt();
-                JsonNode prCommits = githubGet(integration, "/repos/%s/%s/pulls/%d/commits?per_page=30".formatted(
-                        integration.getRepoOwner(),
-                        integration.getRepoName(),
-                        prNumber
-                ));
-                for (JsonNode commit : prCommits) {
-                    GitHubCommitDTO dto = toCommitDto(commit);
-                    commitsBySha.putIfAbsent(dto.sha(), dto);
+                try {
+                    JsonNode prCommits = githubGet(integration, "/repos/%s/%s/pulls/%d/commits?per_page=30".formatted(
+                            integration.getRepoOwner(),
+                            integration.getRepoName(),
+                            prNumber
+                    ));
+                    for (JsonNode commit : prCommits) {
+                        GitHubCommitDTO dto = toCommitDto(commit);
+                        commitsBySha.putIfAbsent(dto.sha(), dto);
+                    }
+                } catch (RuntimeException ignored) {
+                    // Une PR inaccessible ne doit pas bloquer les commits de la branche principale.
                 }
             }
         }
@@ -569,7 +652,7 @@ public class GitHubService {
     private List<Long> extractTaskIdsFromCommitMessage(String message) {
         if (message == null) return List.of();
         List<Long> ids = new ArrayList<>();
-        Matcher matcher = Pattern.compile("(?i)(?:closes?|closed|fixes?|fixed|resolves?)?\\s*(?:AGF-|#|task/)(\\d+)").matcher(message);
+        Matcher matcher = Pattern.compile("(?i)(?:closes?|closed|fixes?|fixed|resolves?)?\\s*(?:[A-Z][A-Z0-9]{1,9}-|#|task/)(\\d+)").matcher(message);
         while (matcher.find()) {
             ids.add(Long.parseLong(matcher.group(1)));
         }
@@ -589,6 +672,23 @@ public class GitHubService {
                     .sha(sha)
                     .build());
         }
+    }
+
+    private List<BranchDTO> mergeBranches(List<BranchDTO> storedBranches, List<GitHubPullRequestDTO> pullRequests) {
+        Map<String, BranchDTO> branchesByName = new LinkedHashMap<>();
+        for (BranchDTO branch : storedBranches) {
+            if (branch.name() != null && !branch.name().isBlank()) {
+                branchesByName.put(branch.name(), branch);
+            }
+        }
+        for (GitHubPullRequestDTO pr : pullRequests) {
+            if (pr.linkedTaskId() == null || pr.headBranch() == null || pr.headBranch().isBlank()) continue;
+            branchesByName.putIfAbsent(
+                    pr.headBranch(),
+                    new BranchDTO(pr.headBranch(), null, pr.linkedTaskId(), pr.createdAt())
+            );
+        }
+        return new ArrayList<>(branchesByName.values());
     }
 
     private void mirrorPullRequestOnVisibleParent(Task task, int prNumber, String prUrl) {
@@ -707,7 +807,10 @@ public class GitHubService {
         try {
             JsonNode response = githubExchange(integration, HttpMethod.POST, url, body);
             return response.path("id").isNumber() ? response.path("id").asLong() : null;
-        } catch (GitHubApiException ex) {
+        } catch (RuntimeException ex) {
+            // En local, GitHub refuse souvent le webhook car l'URL n'est pas publique
+            // ou parce que le token n'a pas admin:repo_hook. L'integration reste utile
+            // pour la synchronisation manuelle, les PRs, les commits et la creation de branches.
             return null;
         }
     }
@@ -739,9 +842,109 @@ public class GitHubService {
             throw new GitHubRepositoryNotFoundException("Depot GitHub introuvable ou token invalide");
         } catch (HttpClientErrorException.Unauthorized ex) {
             throw new GitHubRepositoryNotFoundException("Token GitHub invalide");
+        } catch (HttpClientErrorException.UnprocessableEntity ex) {
+            throw new IllegalArgumentException(gitHubErrorMessage(ex, "La branche existe deja ou le nom de branche est invalide"));
+        } catch (HttpClientErrorException.Forbidden ex) {
+            throw new IllegalStateException("Token GitHub sans permission suffisante. Ajoutez l'acces Contents: Read and write au token.");
+        } catch (HttpClientErrorException.BadRequest ex) {
+            throw new IllegalArgumentException(gitHubErrorMessage(ex, "Requete GitHub invalide"));
+        } catch (HttpStatusCodeException ex) {
+            throw new GitHubApiException(gitHubErrorMessage(ex, "Erreur lors de l'appel a l'API GitHub"));
         } catch (Exception ex) {
             throw new GitHubApiException("Erreur lors de l'appel a l'API GitHub");
         }
+    }
+
+    private String gitHubErrorMessage(HttpStatusCodeException ex, String fallback) {
+        try {
+            JsonNode root = objectMapper.readTree(ex.getResponseBodyAsString());
+            String message = root.path("message").asText("");
+            JsonNode errors = root.path("errors");
+            if (errors.isArray() && !errors.isEmpty()) {
+                List<String> details = new ArrayList<>();
+                for (JsonNode error : errors) {
+                    String detail = error.path("message").asText("");
+                    if (detail == null || detail.isBlank()) {
+                        String field = error.path("field").asText("");
+                        String code = error.path("code").asText("");
+                        detail = (field + " " + code).trim();
+                    }
+                    if (detail != null && !detail.isBlank()) details.add(detail);
+                }
+                if (!details.isEmpty()) return message + ": " + String.join("; ", details);
+            }
+            if (message != null && !message.isBlank()) return message;
+        } catch (Exception ignored) {
+            // Le corps GitHub n'est pas toujours du JSON exploitable.
+        }
+        return fallback;
+    }
+
+    private String getBranchSha(GitHubIntegration integration, String branchName, String notFoundMessage) {
+        try {
+            JsonNode refResponse = githubGet(integration, "/repos/%s/%s/git/ref/heads/%s".formatted(
+                    integration.getRepoOwner(),
+                    integration.getRepoName(),
+                    encodePath(branchName)
+            ));
+            String sha = refResponse.path("object").path("sha").asText("");
+            if (sha.isBlank()) throw new IllegalArgumentException("SHA introuvable pour la branche: " + branchName);
+            return sha;
+        } catch (GitHubRepositoryNotFoundException ex) {
+            throw new IllegalArgumentException(notFoundMessage);
+        }
+    }
+
+    private boolean branchExists(GitHubIntegration integration, String branchName) {
+        try {
+            getBranchSha(integration, branchName, "");
+            return true;
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
+    }
+
+    private boolean openPullRequestExists(GitHubIntegration integration, String headBranch, String baseBranch) {
+        JsonNode prs = githubGet(integration, "/repos/%s/%s/pulls?state=open&head=%s:%s&base=%s".formatted(
+                integration.getRepoOwner(),
+                integration.getRepoName(),
+                encodeQuery(integration.getRepoOwner()),
+                encodeQuery(headBranch),
+                encodeQuery(baseBranch)
+        ));
+        return prs.isArray() && !prs.isEmpty();
+    }
+
+    private String toFrenchGitHubWriteError(String message, String fallback) {
+        String raw = message == null ? "" : message;
+        String lower = raw.toLowerCase(Locale.ROOT);
+        if (lower.contains("reference already exists") || lower.contains("already_exists") || lower.contains("exists already")) {
+            return "Cette branche existe deja sur GitHub.";
+        }
+        if (lower.contains("no commits between") || lower.contains("must be a branch") || lower.contains("head")) {
+            return "Impossible de creer la PR: la branche source ne contient aucun commit different de la branche cible.";
+        }
+        if (lower.contains("pull request already exists") || lower.contains("a pull request already exists")) {
+            return "Une pull request ouverte existe deja pour cette branche.";
+        }
+        if (lower.contains("base") && lower.contains("invalid")) {
+            return "Branche cible invalide ou introuvable.";
+        }
+        if (lower.contains("validation failed")) {
+            return fallback + ": GitHub a refuse la requete. Verifiez le nom de branche, les commits non merges et les permissions du token.";
+        }
+        return raw.isBlank() ? fallback : raw;
+    }
+
+    private String encodePath(String value) {
+        return Arrays.stream((value == null ? "" : value).split("/"))
+                .map(this::encodeQuery)
+                .reduce((left, right) -> left + "/" + right)
+                .orElse("");
+    }
+
+    private String encodeQuery(String value) {
+        return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
     }
 
     private GitHubPullRequestDTO toPullRequestDto(GitHubIntegration integration, JsonNode pr) {
@@ -862,6 +1065,16 @@ public class GitHubService {
 
     private String repoFullName(GitHubIntegration integration) {
         return integration.getRepoOwner() + "/" + integration.getRepoName();
+    }
+
+    private String issueKey(Task task) {
+        return issuePrefix(resolveProject(task)) + "-" + task.getId();
+    }
+
+    private String issuePrefix(Project project) {
+        return project != null && project.getIssuePrefix() != null && !project.getIssuePrefix().isBlank()
+                ? project.getIssuePrefix()
+                : "KAN";
     }
 
     private String name(Enum<?> value) {

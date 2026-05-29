@@ -15,7 +15,7 @@ export interface UserSummary {
 }
 
 export interface StorySummary { id: number; titre: string; priorite: string; }
-export interface ProjectSummary { id: number; nom: string; }
+export interface ProjectSummary { id: number; nom: string; issuePrefix?: string; }
 
 export interface PlanningTask {
   id: number;

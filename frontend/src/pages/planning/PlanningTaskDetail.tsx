@@ -30,6 +30,7 @@ import { formatDateFR, PRIORITE_CONFIG, STATUT_CONFIG, userFullName } from '../.
 import TaskTypeIcon from '../../components/planning/TaskTypeIcon';
 import CreateSubtaskModal from '../../components/planning/CreateSubtaskModal';
 import GitHubTaskDetail from '../../components/github/GitHubTaskDetail';
+import { formatIssueKey } from '../../utils/issueKey';
 
 interface Props {
   taskId: number;
@@ -121,7 +122,7 @@ const PlanningTaskDetail = ({ taskId, onClose }: Props) => {
       <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box sx={{ minWidth: 0 }}>
           <Typography variant="caption" color="text.secondary" noWrap>
-            {task.project?.nom ?? 'Projet'} / KAN-{task.id}
+            {task.project?.nom ?? 'Projet'} / {formatIssueKey(task.project?.issuePrefix ?? activeProject?.issuePrefix, task.id)}
           </Typography>
           <Typography variant="h6" fontWeight={800}>Details</Typography>
         </Box>

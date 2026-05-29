@@ -15,7 +15,6 @@ import TypesOfWorkWidget from './TypesOfWorkWidget';
 import ProjectReceivedInvitations from '../../../components/projects/ProjectReceivedInvitations';
 import PageHeader from '../../../components/layout/PageHeader';
 import GitHubActivitySection from '../../../components/github/GitHubActivitySection';
-import GitHubIntegrationPanel from '../../../components/github/GitHubIntegrationPanel';
 
 const SkeletonWidget = ({ height = 250 }: { height?: number }) => (
   <Skeleton variant="rectangular" width="100%" height={height} sx={{ borderRadius: 1 }} />
@@ -53,7 +52,6 @@ const ProjectSummaryPage = () => {
           </Typography>
         </Box>
         <ProjectReceivedInvitations onAccepted={() => void loadSummary(pId)} />
-        <GitHubIntegrationPanel projectId={pId} />
 
         {isLoading ? (
           <Grid container spacing={1.5}>{[1, 2, 3, 4].map((item) => <Grid item xs={12} sm={6} md={3} key={item}><SkeletonWidget height={72} /></Grid>)}</Grid>

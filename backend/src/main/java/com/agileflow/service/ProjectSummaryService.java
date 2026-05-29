@@ -189,7 +189,7 @@ public class ProjectSummaryService {
                 fieldLabel(log),
                 "sur",
                 task != null ? task.getId() : null,
-                task != null ? "KAN-" + task.getId() + ": " + task.getTitre() : safe(log.getMessage()),
+                task != null ? issueKey(task, log.getProject()) + ": " + task.getTitre() : safe(log.getMessage()),
                 task != null ? name(task.getStatut()) : null,
                 task != null && task.getTypeTache() != null ? task.getTypeTache().name() : null,
                 relative(log.getCreatedAt()),
@@ -225,7 +225,18 @@ public class ProjectSummaryService {
     }
 
     private ProjectDetailDto toProjectDetail(Project project) {
-        return new ProjectDetailDto(project.getId(), project.getNom(), name(project.getStatut()));
+        return new ProjectDetailDto(project.getId(), project.getNom(), issuePrefix(project), name(project.getStatut()));
+    }
+
+    private String issueKey(Task task, Project fallbackProject) {
+        Project project = task != null && task.getProject() != null ? task.getProject() : fallbackProject;
+        return issuePrefix(project) + "-" + task.getId();
+    }
+
+    private String issuePrefix(Project project) {
+        return project != null && project.getIssuePrefix() != null && !project.getIssuePrefix().isBlank()
+                ? project.getIssuePrefix()
+                : "KAN";
     }
 
     private String getEpicColor(Long id) {

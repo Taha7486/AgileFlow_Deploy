@@ -1,0 +1,559 @@
+Design a French-language SaaS landing page and authentication flow for 
+"AgileFlow" — a Jira-inspired Agile project management platform.
+
+The design must match the app's existing visual style: light/white main 
+content area, dark navy sidebar (#1A1F2E), blue accents (#2563EB).
+
+---
+
+## BRAND & LOGO (CRITICAL — use exactly)
+
+The AgileFlow logo is:
+- A large stylized letter "A" as the main shape
+- Gradient fill: cyan/blue (#00BFFF) on the left leg → deep blue (#1A3FD4) 
+  center → purple/violet (#7C3AED) on the right, flowing diagonally
+- The "A" has a flowing arrow curve integrated into its right leg, 
+  suggesting forward motion and agility
+- Around the "A", floating illustrated icons (use as decorative elements 
+  in hero section):
+  - Top-left: dark Kanban board window (3 columns with colored task cards: 
+    blue, green, purple, yellow)
+  - Top-right: colorful team/people icons (blue, green, purple circles)
+  - Right: green checkmark circle (success/done state)
+  - Bottom-right: purple arrow pointing right (progress/direction)
+  - Bottom: Gantt timeline bars (blue, green, purple horizontal bars 
+    with dotted timeline axis)
+  - Left bottom: curved blue flow lines
+
+Logo usage in UI:
+  - In navbar/header: show the "A" icon only (40px) + "AgileFlow" wordmark 
+    in gradient text (blue to purple, bold 20px)
+  - In sidebar: white "A" monochrome version + "AgileFlow" in white
+  - In login/register left panel: full logo with gradient on dark background
+  - Favicon/loading: "A" icon only
+
+Logo colors extracted:
+  - Primary cyan:   #00BFFF
+  - Primary blue:   #1A3FD4  
+  - Primary purple: #7C3AED
+  - Gradient:       linear-gradient(135deg, #00BFFF 0%, #2563EB 50%, #7C3AED 100%)
+
+---
+
+## BRAND & STYLE
+
+Color palette:
+  - Sidebar background:    #1A1F2E
+  - Sidebar active item:   #2563EB
+  - Sidebar text:          #CBD5E1
+  - Sidebar active text:   #FFFFFF
+  - Main content bg:       #F8F9FA
+  - Card background:       #FFFFFF
+  - Card border:           #E2E8F0
+  - Primary blue:          #2563EB
+  - Primary blue hover:    #1D4ED8
+  - Accent purple:         #7C3AED (new — from logo)
+  - Accent cyan:           #00BFFF (new — from logo)
+  - Gradient CTA:          linear-gradient(135deg, #2563EB, #7C3AED)
+  - Text primary:          #111827
+  - Text secondary:        #6B7280
+  - Success green:         #16A34A
+  - Header bg:             #FFFFFF, border-bottom 1px #E2E8F0
+
+Typography: Inter (all weights)
+Border radius: 8px cards, 6px buttons/inputs
+Icons: Lucide outline style, 20px
+
+---
+
+## PAGE 1 — LANDING HOME PAGE (1440px)
+
+### Navigation Bar (56px, white, sticky, border-bottom #E2E8F0)
+
+Left:
+  - AgileFlow "A" icon (40px, full gradient version)
+  - "AgileFlow" wordmark (gradient text blue→purple, 20px bold)
+
+Center nav (14px #374151, hover #2563EB):
+  Fonctionnalités | Équipes | Tarifs | Documentation
+
+Right:
+  - "Se connecter" (ghost, border #E2E8F0, #374151, 36px)
+  - "Commencer gratuitement" 
+    (gradient bg blue→purple, white text, 36px, 6px radius)
+
+### Section 1 — Hero (white bg, 100px padding, 2 columns 55/45)
+
+LEFT column:
+
+Pill badge (top):
+  bg #F5F3FF, border #DDD6FE, text #7C3AED, 13px
+  "✦ Kanban · Gantt · GitHub · Diagrammes"
+
+H1 (56px, #111827, bold, line-height 1.15):
+  "La plateforme Agile
+   de votre équipe."
+  
+  Style "Agile": gradient text (#2563EB → #7C3AED), 
+  with a subtle gradient underline decoration
+
+Subtitle (18px, #6B7280, max-width 460px):
+  "Planification, Kanban, Chronologie Gantt,
+   diagrammes collaboratifs et GitHub —
+   réunis en une seule plateforme."
+
+CTA buttons (margin-top 36px, gap 12px):
+  Primary: "Créer un projet gratuitement →"
+    bg: linear-gradient(135deg, #2563EB, #7C3AED)
+    text: white, 44px height, 6px radius
+    hover: opacity 0.9 + translateY -2px + shadow
+    
+  Secondary: "Voir une démo"
+    bg: #F9FAFB, border: 1px #E2E8F0, text: #374151, 44px
+
+Social proof row (margin-top 28px):
+  3 overlapping avatars (36px circles, colors from logo palette: 
+  blue #2563EB, green #16A34A, purple #7C3AED) 
+  + "Rejoint par +500 équipes" (13px #6B7280)
+  + ★★★★★ (yellow #F59E0B)
+
+RIGHT column:
+
+Main element: the AgileFlow logo illustration (from image)
+  - Display the full logo artwork (A with surrounding icons) 
+    at large scale (400px × 400px)
+  - Place on a very subtle radial gradient background:
+    center glow rgba(37,99,235,0.06) → transparent
+  - Add 3 floating annotation cards around it:
+  
+  Card top-right (white, shadow, radius 8px, padding 12px 16px):
+    Green dot (8px, #16A34A) + "6 tâches terminées aujourd'hui"
+    (13px, #374151 bold + #6B7280)
+  
+  Card bottom-left (white, shadow, radius 8px):
+    GitHub octocat icon (gray) + "GitHub connecté" 
+    + green dot "En ligne"
+  
+  Card bottom-right (white, shadow, radius 8px):
+    Blue chip "PR #8" + arrow → green chip "DONE"
+    "Merge automatique détecté" (12px #6B7280)
+
+Background: white #FFFFFF
+Dot grid pattern: opacity 3%, #CBD5E1, 24px gap
+
+### Section 2 — Social Proof Bar (#F8F9FA, 60px padding)
+
+"Utilisé par des équipes qui construisent de grands produits"
+5 gray wordmarks: "Nexora" | "Devlift" | "Stackly" | "Buildco" | "Codevault"
+color: #CBD5E1, 18px bold
+
+### Section 3 — Features Grid (white, 100px padding)
+
+Section label (12px caps, gradient text): "FONCTIONNALITÉS"
+H2 (40px, #111827): "Tout ce dont votre équipe a besoin"
+Subtitle (18px, #6B7280): centered
+
+6 cards (3×2, gap 20px, margin-top 56px):
+Each: white, border 1px #E2E8F0, radius 8px, padding 28px
+hover: border gradient (blue→purple), shadow +4px
+
+Use icon squares with colors from logo palette:
+
+Card 1 — Planification
+  Icon bg: #EFF6FF, icon: list, color: #2563EB
+  Title: "Planification en liste"
+  Desc: "Vue Jira-style avec édition inline 
+         et groupement par épic."
+
+Card 2 — Kanban  
+  Icon bg: #EFF6FF, icon: view-columns, color: #2563EB
+  Title: "Tableau Kanban temps réel"
+  Desc: "Drag & drop fluide. WebSocket 
+         pour mises à jour instantanées."
+  (Reference the Kanban board shown in the logo illustration)
+
+Card 3 — Chronologie
+  Icon bg: #F0FDF4, icon: calendar, color: #16A34A
+  Title: "Chronologie Gantt"
+  Desc: "Visualisez épics et tâches dans le temps.
+         Dépendances automatiques."
+  (Reference the Gantt bars shown in the logo illustration)
+
+Card 4 — GitHub
+  Icon bg: #F8F9FA, icon: GitHub, color: #374151
+  Title: "Intégration GitHub"
+  Desc: "Issues, PR et commits liés 
+         directement à vos tâches."
+  Badge top-right: "Nouveau" (bg #F5F3FF, text #7C3AED, pill)
+
+Card 5 — Diagrammes
+  Icon bg: #F5F3FF, icon: share-network, color: #7C3AED
+  Title: "Diagrammes collaboratifs"
+  Desc: "UML, séquence, BPMN — 
+         édition multi-utilisateurs temps réel."
+
+Card 6 — Équipes
+  Icon bg: #F0FDF4, icon: users, color: #16A34A
+  Title: "Gestion des équipes"
+  Desc: "Invitations, rôles projet, stats 
+         et suivi de charge."
+  (Reference the team/people icons in the logo)
+
+### Section 4 — GitHub Spotlight (#F8F9FA, 100px padding, 2 cols)
+
+LEFT text:
+  Pill: "🐙 Intégration GitHub" (#F5F3FF bg, #7C3AED text)
+  H2 (36px): "Votre code et vos tâches, connectés."
+  4 feature rows (emerald ✓ circles):
+  → "Issues GitHub → tâches AgileFlow automatiquement"
+  → "Branche créée → tâche passe en IN_PROGRESS"  
+  → "PR ouverte → tâche passe en REVIEW"
+  → "PR mergée → tâche passe en DONE"
+  CTA: "Connecter GitHub →" (gradient outline button)
+
+RIGHT mockup (white card, border #E2E8F0, radius 8px, shadow):
+  Dark header bar (#1A1F2E): "webhook payload" in white mono font
+  
+  Code block (white, 13px JetBrains Mono):
+  {
+    "event": "pull_request",
+    "action": "closed",
+    "merged": true,
+    "pull_request": {
+      "title": "Fix auth KAN-42",
+      "number": 42
+    }
+  }
+  
+  Arrow (→, gradient blue→purple) pointing to:
+  Mini task card (white, border, radius 6px):
+    Gradient "KAN-42" badge + "Fix auth" title +
+    "DONE" chip (bg #F0FDF4, text #16A34A, border #BBF7D0)
+    
+  Note below: "Préfixe configurable : KAN, GRF, PROJ..."
+  (12px #9CA3AF italic)
+
+### Section 5 — CTA Banner (gradient bg, 120px padding)
+
+Background: linear-gradient(135deg, #1A3FD4 0%, #2563EB 40%, #7C3AED 100%)
+(matches exact logo gradient)
+
+H2 (44px, white): "Prêt à accélérer votre équipe ?"
+Subtitle (18px, white/80):
+  "Créez votre premier projet en moins de 2 minutes."
+
+Decorative: place the logo "A" icon (white version, 120px, opacity 10%) 
+as a watermark on the right side of the banner
+
+Buttons:
+  "Commencer gratuitement" (white bg, gradient text, bold, 44px)
+  "Voir la démo" (white border, white text, transparent, 44px)
+Below: "✓ Aucune carte bancaire requise" (white/60, 13px)
+
+### Footer (#1A1F2E — matches sidebar)
+
+Left: 
+  White "A" icon (32px) + "AgileFlow" white bold
+  Tagline: "Gérez vos projets Agile. Simplement." (#94A3B8)
+
+3 columns (#94A3B8 links, white headings):
+  Produit: Fonctionnalités | Kanban | Planification | Chronologie | GitHub
+  Ressources: Documentation | API | Changelog
+  Entreprise: À propos | Contact | Confidentialité
+
+Bottom: divider #2D3748 + "© 2026 AgileFlow" (#64748B)
+
+---
+
+## PAGE 2 — LOGIN (1440px, split 50/50)
+
+LEFT PANEL (bg: linear-gradient(160deg, #0F1624 0%, #1A1F2E 60%, #1E1535 100%)):
+
+Centered content:
+  Full AgileFlow logo (the "A" illustration from image, 140px)
+  "AgileFlow" wordmark below (gradient text, 28px bold)
+  
+  H2 (24px, white, margin-top 32px): "Bon retour parmi vous 👋"
+  Subtitle (15px, #94A3B8): 
+    "Retrouvez vos projets, tâches et équipes."
+  
+  Mini feature pills row (margin-top 24px, flex wrap, gap 8px):
+    "⬛ Kanban" (dark bg, #CBD5E1, small pill)
+    "📅 Gantt" 
+    "🐙 GitHub"
+    "◈ Diagrammes"
+  
+  Testimonial card (margin-top auto, 
+    bg rgba(255,255,255,0.07), border rgba(255,255,255,0.1), 
+    radius 8px, padding 20px, backdrop-blur):
+    ★★★★★ (yellow, 14px)
+    Quote: "AgileFlow a transformé notre gestion 
+            de sprints et l'intégration GitHub 
+            nous fait gagner des heures." (14px, white/80, italic)
+    Avatar + "Marie D., Lead Dev @ Stackly" (13px, #94A3B8)
+
+RIGHT PANEL (bg #F8F9FA):
+
+Centered white card (max-width 420px, padding 40px, 
+  radius 8px, border #E2E8F0, shadow):
+
+  "Se connecter" (22px bold #111827)
+  "Pas de compte ? " + "Créer un compte →" (#2563EB, link)
+  
+  OAuth buttons (margin-top 24px, gap 8px):
+    "Continuer avec GitHub"
+      (white, border #E2E8F0, GitHub icon left, #374151, full-width, 44px)
+    "Continuer avec Google"
+      (white, border #E2E8F0, Google G icon left, #374151, full-width, 44px)
+  
+  Divider: "— ou —" (#9CA3AF, 13px)
+  
+  Form (gap 16px):
+    Email:
+      Label "Email" (13px bold #374151)
+      Input (white, border #E2E8F0, 44px, radius 6px,
+        focus: border #2563EB, ring rgba(37,99,235,0.1),
+        placeholder "vous@exemple.com",
+        envelope icon left #9CA3AF)
+    
+    Password:
+      Label row: "Mot de passe" + "Oublié ?" (#2563EB link, right)
+      Input (same, eye toggle right, lock icon left)
+  
+  Checkbox "Se souvenir de moi" (13px #374151)
+  
+  Submit: "Se connecter →"
+    bg: linear-gradient(135deg, #2563EB, #7C3AED)
+    text: white, full-width, 44px, radius 6px
+    hover: opacity 0.9
+    loading state: spinner + "Connexion..."
+  
+  Error variant frame:
+    Red border on email + "Email ou mot de passe incorrect." (#EF4444, 13px)
+
+---
+
+## PAGE 3 — REGISTER (1440px, form LEFT, visual RIGHT)
+
+RIGHT PANEL (same gradient as login left panel):
+
+AgileFlow logo illustration (100px, centered top)
+
+Onboarding steps (centered, margin-top 40px):
+  Vertical list with connecting dotted line (gradient blue→purple):
+  
+  ① "Créer un compte"
+     Circle: gradient filled (current step), 32px
+     Label: white 15px bold
+  
+  ② "Créer votre premier projet"
+     Circle: dark outline, gradient border
+     Label: #94A3B8
+  
+  ③ "Inviter votre équipe"
+     Same inactive style
+     Small icon: team/people (from logo palette)
+  
+  ④ "Commencer à collaborer"
+     Arrow icon matching logo's forward arrow
+
+Below steps: mini illustration using logo icons:
+  Small Kanban board + small Gantt bars + small team icons
+  (all white/monochrome, opacity 20%, decorative)
+
+LEFT PANEL (#F8F9FA):
+
+White card (max-width 480px, same card style):
+  "Créer un compte" (22px bold)
+  "Déjà inscrit ? Se connecter →"
+  
+  OAuth buttons (same as login)
+  Divider
+  
+  Form:
+    Name row: "Prénom" + "Nom" (50/50 grid)
+    Email (full width)
+    Password (full width) + strength bar:
+      4 segments, height 4px, radius-full
+      Weak: 1 red | Fair: 2 orange | Good: 3 light-green | Strong: 4 green
+      Label: "Moyen" (orange, 12px, right-aligned)
+    Confirm password
+  
+  Terms: checkbox + 
+    "J'accepte les conditions d'utilisation" (blue link)
+  
+  Submit: "Créer mon compte →"
+    (same gradient button as login)
+
+OTP Verification frame (replaces form after submit):
+  Gradient "A" icon (48px, centered)
+  "Vérifiez votre email 📬" (20px bold)
+  "Code envoyé à alice@exemple.com" (14px #6B7280)
+  
+  6 digit boxes (48px × 56px, gap 8px, centered):
+    Default: border #E2E8F0, white bg
+    Active: border #2563EB, ring rgba(37,99,235,0.1)
+    Filled: bg #EFF6FF, border #2563EB, text #111827 bold
+  
+  "Renvoyer le code (59s)" (13px #9CA3AF)
+  "Vérifier →" (gradient button, full width)
+
+---
+
+## PAGE 4 — CREATE PROJECT MODAL
+
+Shown over blurred dashboard screenshot background (from app)
+
+Modal (white, radius 12px, border #E2E8F0, 
+  shadow 0 20px 60px rgba(0,0,0,0.15), width 560px, padding 32px):
+
+Header:
+  Gradient "A" icon (32px) inline with title
+  "Créer un nouveau projet" (18px bold #111827)
+  "Configurez votre espace de travail." (14px #6B7280)
+  X close (top-right)
+  Divider
+
+Form (gap 20px):
+
+1. Project name:
+   Label "Nom du projet *"
+   Input (placeholder "ex. Mon Super Projet")
+   Row below: 
+     "Clé : " + editable chip "KAN" 
+     (bg gradient/10, text gradient, border gradient/30,
+     tooltip: "Utilisé dans les tâches : KAN-1, KAN-2...")
+     + info icon with tooltip
+
+2. Description textarea (4 rows)
+
+3. Type selector (3 cards, 3 columns):
+   Selected: gradient border + gradient bg/5
+   - 🚀 Logiciel (selected by default)
+   - 📈 Marketing  
+   - 🎨 Design
+
+4. Invite members:
+   Email input + "Ajouter" (gradient outline button)
+   Chips: gradient border + gradient text
+
+5. GitHub toggle section:
+   GitHub icon + "Connecter un dépôt GitHub" + toggle
+   ON state reveals:
+     Owner input + Repo input + Token input
+     "Créer un token →" (gradient text link, 12px)
+     Scope hint: "Scope requis : repo, admin:repo_hook" (12px #9CA3AF)
+
+Footer:
+  "Annuler" (ghost) | "Créer le projet →" (gradient filled button)
+
+Success state:
+  Centered in modal:
+  Logo "A" (64px, full gradient, scale-in animation)
+  "🎉 Projet créé avec succès !"
+  "Redirection vers votre tableau de bord..."
+  Gradient progress bar (4px, animating 0→100%)
+
+---
+
+## PAGE 5 — REDIRECT LOADING (full screen)
+
+White #F8F9FA full screen:
+- Center: AgileFlow full logo illustration (120px)
+- "AgileFlow" wordmark (gradient, 24px bold)
+- "Chargement de votre espace de travail..." (16px #6B7280)
+- 3 dots animation (gradient colors: blue, purple, cyan)
+- Project card below (white, border, radius 8px, padding 16px):
+  Gradient "A" avatar (32px) + project name bold + 
+  "Accès en cours..." (#9CA3AF)
+- Gradient progress bar (3px, full width, bottom of viewport)
+  gradient: linear(90deg, #00BFFF, #2563EB, #7C3AED)
+
+---
+
+## COMPONENT SPECS
+
+Gradient utility (reuse everywhere):
+  --gradient-brand: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)
+  --gradient-full:  linear-gradient(135deg, #00BFFF 0%, #2563EB 50%, #7C3AED 100%)
+
+Buttons:
+  Primary gradient: bg var(--gradient-brand), text white, 
+    radius 6px, height 44px (lg) / 36px (md)
+    hover: opacity 0.88 + translateY -1px + shadow
+    disabled: opacity 0.4
+  Ghost gradient: bg transparent, border 1.5px solid #7C3AED, 
+    text #7C3AED, hover bg #F5F3FF
+  Secondary: bg white, border #E2E8F0, text #374151, hover bg #F8F9FA
+  Danger: bg #EF4444, text white
+
+Inputs: (unchanged from previous spec)
+  White, border #E2E8F0, focus border #2563EB + ring
+  Height 44px, radius 6px
+
+Cards:
+  White, border #E2E8F0, radius 8px
+  shadow: 0 1px 3px rgba(0,0,0,0.06)
+  hover: border gradient color + shadow grows
+
+Badges:
+  BUG:     bg #FEF2F2, text #DC2626, border #FECACA
+  FEATURE: bg #EFF6FF, text #2563EB, border #BFDBFE
+  EPIC:    bg #F5F3FF, text #7C3AED, border #DDD6FE
+  TASK:    bg #F8FAFC, text #64748B, border #E2E8F0
+  TODO:    bg #F1F5F9, text #64748B
+  IN_PROG: bg #EFF6FF, text #2563EB
+  REVIEW:  bg #FFFBEB, text #D97706
+  DONE:    bg #F0FDF4, text #16A34A, border #BBF7D0
+
+Sidebar (reference):
+  Width 240px, bg #1A1F2E
+  Active item: gradient bg (#2563EB→#1A3FD4 subtle), 
+    left accent 3px gradient, white text, radius 6px, margin 0 8px
+  Nav icon colors: 
+    Resume=blue, DiagramFlow=purple, Developpement=gray,
+    Planification=blue, Kanban=blue, Chronologie=green, Equipes=green
+
+Logo "A" icon variants to create as components:
+  - Full color (gradient, for hero and loading)
+  - White monochrome (for sidebar and dark backgrounds)
+  - Small 32px (for modal header, breadcrumbs)
+  - Favicon 16px (simplified A shape only)
+
+---
+
+## FIGMA ORGANIZATION
+
+Pages:
+  1. 🏠 Landing Page
+  2. 🔐 Login
+  3. 📝 Register + OTP
+  4. ➕ Create Project Modal
+  5. ⏳ Loading / Redirect
+  6. 🎨 Design System
+
+Design System page must include:
+  - Logo component: all 4 variants (full gradient, white, 32px, favicon)
+  - Gradient swatches: --gradient-brand and --gradient-full
+  - All button variants with all states
+  - All input variants with all states
+  - Card component
+  - All badge variants
+  - Sidebar navigation component
+  - KPI card component (matching app screenshot)
+
+Figma Variables:
+  Color/Brand-Cyan:      #00BFFF
+  Color/Brand-Blue:      #2563EB
+  Color/Brand-Purple:    #7C3AED
+  Color/Brand-Dark:      #1A3FD4
+  Color/Sidebar:         #1A1F2E
+  Color/Surface:         #FFFFFF
+  Color/Background:      #F8F9FA
+  Color/Border:          #E2E8F0
+  Color/Text-Primary:    #111827
+  Color/Text-Secondary:  #6B7280
+  Color/Success:         #16A34A
+  Color/Danger:          #EF4444
+
+Auto-layout throughout, component variants for all interactive states.

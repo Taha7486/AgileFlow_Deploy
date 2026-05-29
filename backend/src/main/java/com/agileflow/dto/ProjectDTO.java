@@ -3,6 +3,7 @@ package com.agileflow.dto;
 public record ProjectDTO(
         Long id,
         String name,
+        String issuePrefix,
         String description,
         String startDate,
         String endDate,

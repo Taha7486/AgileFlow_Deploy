@@ -13,7 +13,7 @@ export interface KanbanUser {
 
 export interface KanbanSprint { id: number; nom: string; statut: string; }
 export interface KanbanStory { id: number; titre: string; priorite: string; }
-export interface KanbanProject { id: number; nom: string; }
+export interface KanbanProject { id: number; nom: string; issuePrefix?: string; }
 
 export interface KanbanTask {
   id: number;

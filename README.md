@@ -87,6 +87,16 @@ github.api.base-url=https://api.github.com
 github.webhook.base-url=${app.frontend-url}
 ```
 
+Pour un usage local, `github.webhook.base-url` peut rester non public : la
+connexion GitHub et la synchronisation manuelle fonctionneront, mais GitHub ne
+pourra pas appeler les webhooks sur `localhost`. Pour tester les transitions
+automatiques par webhook, utiliser une URL backend publique (ngrok, tunnel, ou
+serveur deploye), par exemple :
+
+```properties
+github.webhook.base-url=https://votre-url-publique
+```
+
 Secrets a garder hors Git :
 
 ```env
@@ -173,6 +183,7 @@ Le selecteur de projet dans le header permet :
 
 - choisir le projet actif ;
 - creer un projet ;
+- definir le prefixe des taches du projet, par exemple `KAN`, `GRF` ou `PROJ` ;
 - modifier ou supprimer le projet via le menu ;
 - inviter un membre via le bouton membre place a cote du projet.
 
@@ -190,6 +201,8 @@ Le selecteur de projet dans le header permet :
 ### Projets et invitations
 
 - Creation, modification et suppression de projet.
+- Chaque projet possede un prefixe de taches configurable (`KAN` par defaut),
+  utilise dans les cartes, details, branches, PRs et commits GitHub.
 - Le createur devient proprietaire (`OWNER`) du projet.
 - Invitation par email depuis le header ou la page Equipe.
 - Si l'utilisateur existe deja, il recoit une invitation et peut rejoindre le projet.
@@ -214,34 +227,41 @@ GET    /api/github/tasks/{taskId}/development-panel
 GET    /api/github/tasks/{taskId}/branches
 GET    /api/github/tasks/{taskId}/suggest-branch-name
 POST   /api/github/tasks/{taskId}/create-branch
+POST   /api/github/tasks/{taskId}/create-pull-request
 POST   /api/github/webhook/{projectId}
 ```
 
 Fonctionnalites :
 
 - lier un depot GitHub a un projet ;
+- connecter, deconnecter et synchroniser le depot depuis la page Developpement ;
 - synchroniser les issues GitHub vers les taches AgileFlow ;
 - mapper les labels GitHub `epic`, `bug`, `feature` et `enhancement` vers
   `typeTache` ;
 - recuperer les pull requests ouvertes et les commits recents ;
-- lier une PR a une tache via les patterns `#123`, `AGF-123`, `task/123` ;
+- lier une PR a une tache via les patterns `#123`, `{PREFIX}-123`,
+  `task/123`, ou une branche contenant `{PREFIX}-123` ;
 - traiter les webhooks `issues`, `pull_request` et `push` avec validation
   HMAC `X-Hub-Signature-256` ;
 - afficher l'activite GitHub dans le Resume ;
-- afficher une page Developpement dediee au projet actif ;
+- afficher une page Developpement dediee au projet actif avec connexion depot,
+  synchronisation, PRs, branches et commits ;
 - creer une branche GitHub depuis une tache ;
+- creer une pull request GitHub depuis une tache ;
 - afficher branches, PRs, checks et commits dans le panneau Developpement
   d'une tache ;
 - afficher issues, PRs et commits dans le detail d'une tache ;
 - afficher un badge PR compact sur les cartes Kanban.
 - transitions automatiques : branche creee -> IN_PROGRESS, PR ouverte ->
   REVIEW, PR mergee -> DONE, PR fermee sans merge -> IN_PROGRESS, commit
-  `closes/fixes/resolves #N` -> DONE.
+  `closes/fixes/resolves #N` ou `{PREFIX}-N` -> DONE.
 
 Securite :
 
 - le token GitHub est stocke uniquement cote backend dans `GitHubIntegration` ;
 - le token n'est jamais renvoye dans les DTOs frontend ;
+- token classic recommande en local : scope `repo` pour lire/ecrire dans le
+  depot, et `admin:repo_hook` uniquement si vous voulez creer le webhook GitHub ;
 - `connect`, `disconnect` et `sync` sont reserves au proprietaire ou admin du
   projet ;
 - l'endpoint webhook est public mais valide par signature HMAC.
@@ -276,7 +296,6 @@ Widgets :
 - types de travail ;
 - charge equipe ;
 - progression des epics.
-- panneau d'integration GitHub.
 - activite GitHub si un depot est connecte.
 
 ### Planification

@@ -111,6 +111,15 @@ public class GitHubController {
         return ResponseEntity.ok(gitHubService.createBranchForTask(taskId, request.branchName(), request.fromBranch(), currentUser.getId()));
     }
 
+    @PostMapping("/tasks/{taskId}/create-pull-request")
+    public ResponseEntity<GitHubPullRequestDTO> createPullRequest(
+            @PathVariable Long taskId,
+            @RequestBody CreatePullRequestRequest request
+    ) {
+        User currentUser = projectAccessService.currentUser();
+        return ResponseEntity.ok(gitHubService.createPullRequestForTask(taskId, request, currentUser.getId()));
+    }
+
     @GetMapping("/tasks/{taskId}/suggest-branch-name")
     public ResponseEntity<Map<String, String>> suggestBranchName(@PathVariable Long taskId) {
         assertTaskAccess(taskId);

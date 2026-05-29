@@ -17,6 +17,8 @@ public class Project {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String nom;
+    @Builder.Default
+    private String issuePrefix = "KAN";
     private String description;
     private LocalDate dateDebut;
     private LocalDate dateFin;

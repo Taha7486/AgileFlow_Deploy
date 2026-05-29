@@ -21,6 +21,7 @@ const today = new Date().toISOString().slice(0, 10);
 
 const CreateProjectModal = ({ open, saving, teams, project, onClose, onSubmit }: Props) => {
   const [name, setName] = useState('');
+  const [issuePrefix, setIssuePrefix] = useState('KAN');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState('');
@@ -32,6 +33,7 @@ const CreateProjectModal = ({ open, saving, teams, project, onClose, onSubmit }:
     if (!open) return;
     setError(null);
     setName(project?.name ?? '');
+    setIssuePrefix(project?.issuePrefix ?? 'KAN');
     setDescription(project?.description ?? '');
     setStartDate(project?.startDate ?? today);
     setEndDate(project?.endDate ?? '');
@@ -42,6 +44,11 @@ const CreateProjectModal = ({ open, saving, teams, project, onClose, onSubmit }:
   const handleSubmit = async () => {
     if (!name.trim()) {
       setError('Le nom du projet est obligatoire.');
+      return;
+    }
+    const normalizedPrefix = issuePrefix.trim().toUpperCase();
+    if (!/^[A-Z0-9]{2,10}$/.test(normalizedPrefix)) {
+      setError('Le prefixe des taches doit contenir 2 a 10 lettres ou chiffres, sans espace.');
       return;
     }
     if (!startDate) {
@@ -56,6 +63,7 @@ const CreateProjectModal = ({ open, saving, teams, project, onClose, onSubmit }:
     setError(null);
     await onSubmit({
       name: name.trim(),
+      issuePrefix: normalizedPrefix,
       description: description.trim() || undefined,
       startDate,
       endDate: endDate || undefined,
@@ -75,6 +83,14 @@ const CreateProjectModal = ({ open, saving, teams, project, onClose, onSubmit }:
           </Alert>
         )}
         <TextField label="Nom du projet" value={name} onChange={(e) => setName(e.target.value)} fullWidth required />
+        <TextField
+          label="Prefixe des taches"
+          value={issuePrefix}
+          onChange={(e) => setIssuePrefix(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10))}
+          fullWidth
+          required
+          helperText="Exemples: KAN, GRF, PROJ. Les taches seront affichees comme GRF-37."
+        />
         <TextField label="Description" value={description} onChange={(e) => setDescription(e.target.value)} multiline minRows={3} fullWidth />
         <TextField label="Date de debut" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} InputLabelProps={{ shrink: true }} required />
         <TextField label="Date de fin" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} InputLabelProps={{ shrink: true }} />

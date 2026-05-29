@@ -59,8 +59,8 @@ const GitHubActivitySection = ({ projectId }: Props) => {
       <Grid container spacing={2}>
         <Grid item xs={12} md={6}>
           <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1 }}>Derniers commits</Typography>
-          <Stack spacing={1}>
-            {safeCommits.slice(0, 5).map((commit) => (
+          <Stack spacing={1} sx={{ maxHeight: 320, overflowY: 'auto', pr: 0.5 }}>
+            {safeCommits.map((commit) => (
               <Box key={commit.sha} sx={{ p: 1, borderRadius: 1, bgcolor: '#F7F8F9' }}>
                 <Stack direction="row" justifyContent="space-between" spacing={1}>
                   <Typography fontWeight={800} fontSize={13}>{commit.shortSha}</Typography>
@@ -75,8 +75,8 @@ const GitHubActivitySection = ({ projectId }: Props) => {
         </Grid>
         <Grid item xs={12} md={6}>
           <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1 }}>Pull requests ouvertes</Typography>
-          <Stack spacing={1}>
-            {safePullRequests.slice(0, 5).map((pr) => (
+          <Stack spacing={1} sx={{ maxHeight: 320, overflowY: 'auto', pr: 0.5 }}>
+            {safePullRequests.map((pr) => (
               <Box key={pr.number} sx={{ p: 1, borderRadius: 1, bgcolor: '#F7F8F9' }}>
                 <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
                   <Chip size="small" label={`PR #${pr.number}`} color={pr.merged ? 'success' : 'warning'} />

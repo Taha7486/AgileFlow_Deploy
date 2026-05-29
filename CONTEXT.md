@@ -1,6 +1,6 @@
 # AgileFlow - Project Context
 
-Last updated: 2026-05-26
+Last updated: 2026-05-29
 
 This file describes the current project state for developers and AI assistants.
 Keep it aligned with the codebase after each significant change.
@@ -13,6 +13,7 @@ The current product scope includes:
 
 - project selector in the global header;
 - project CRUD from the header selector;
+- configurable project task prefix, for example `KAN`, `GRF` or `PROJ`;
 - project invitations by email;
 - project roles and member management;
 - GitHub repository integration;
@@ -117,6 +118,7 @@ Important entities:
 
 Recent schema concepts:
 
+- `projects.issue_prefix` (`KAN` by default), used for task keys such as `GRF-37`
 - `tasks.type_tache`
 - `tasks.parent_task_id`
 - `tasks.date_debut`
@@ -274,7 +276,14 @@ GET    /api/github/projects/{projectId}/integration
 POST   /api/github/projects/{projectId}/sync
 GET    /api/github/projects/{projectId}/pull-requests
 GET    /api/github/projects/{projectId}/commits
+GET    /api/github/projects/{projectId}/branches
+GET    /api/github/projects/{projectId}/development
 GET    /api/github/tasks/{taskId}/commits
+GET    /api/github/tasks/{taskId}/development-panel
+GET    /api/github/tasks/{taskId}/branches
+GET    /api/github/tasks/{taskId}/suggest-branch-name
+POST   /api/github/tasks/{taskId}/create-branch
+POST   /api/github/tasks/{taskId}/create-pull-request
 POST   /api/github/webhook/{projectId}
 
 GET /api/diagrams
@@ -413,6 +422,7 @@ The active project header controls project-scoped pages.
 - Displays AgileFlow branding.
 - Displays active project selector.
 - Project selector supports create/edit/delete from the dropdown/menu.
+- Project creation/edit includes the task prefix used for keys like `KAN-37`.
 - Member invite button is next to the project selector.
 - Project-scoped pages should use `activeProjectStore`.
 
@@ -437,7 +447,6 @@ Contains:
 - KPI cards.
 - Status donut.
 - Recent activity without the open-in-new icon.
-- GitHub integration panel.
 - GitHub activity section when a repository is linked.
 - Priority breakdown.
 - Types of work.
@@ -557,8 +566,13 @@ Backend:
 - Development page endpoint: `GET /api/github/projects/{projectId}/development`.
 - Task development panel endpoint: `GET /api/github/tasks/{taskId}/development-panel`.
 - Branch creation endpoint: `POST /api/github/tasks/{taskId}/create-branch`.
+- Pull request creation endpoint: `POST /api/github/tasks/{taskId}/create-pull-request`.
 - Webhook validation: `X-Hub-Signature-256` HMAC-SHA256.
 - GitHub token and webhook secret are never exposed in DTOs.
+- Repository connection, disconnection and manual synchronization are managed
+  from `/development`, not from the project summary.
+- Task keys use the project's configurable prefix. Examples: `KAN-37`,
+  `GRF-37`, `#37` and `task/37` can link GitHub activity to task id `37`.
 
 Synchronization rules:
 
@@ -577,11 +591,12 @@ Webhook behavior:
 - `issues/reopened`: set linked task to TODO;
 - `create` branch events: link branch to mentioned task and move TODO tasks to IN_PROGRESS;
 - `pull_request/opened`: link PR to mentioned task and move it to REVIEW;
+- AgileFlow-created PRs are linked to the source task and move it to REVIEW;
 - `pull_request/synchronize`: refresh the linked PR;
 - `pull_request/closed` with `merged=true`: set linked task DONE and log `GITHUB_PR_MERGED`;
 - `pull_request/closed` without merge: set linked task to IN_PROGRESS;
 - `push`: create `GITHUB_COMMIT` activity logs for mentioned tasks;
-- `push` with `closes/fixes/resolves #N`, `AGF-N` or `task/N`: set task DONE.
+- `push` with `closes/fixes/resolves #N`, `{PREFIX}-N` or `task/N`: set task DONE.
 
 Frontend:
 
@@ -594,6 +609,8 @@ Frontend:
   - `GitHubTaskDetail`;
   - `GitHubDevelopmentPanel`.
 - Page: `frontend/src/pages/development/DevelopmentPage.tsx`.
+- `DevelopmentPage` contains the compact GitHub integration panel, a single
+  manual sync action, project PRs, active branches and recent commits.
 
 ### Activity Logs
 

@@ -84,7 +84,7 @@ export interface ActivityGroup {
 }
 
 export interface ProjectSummaryData {
-  project: { id: number; nom: string; statut: string };
+  project: { id: number; nom: string; issuePrefix?: string; statut: string };
   kpi: KpiStats;
   statusOverview: StatusOverview;
   priorityBreakdown: PriorityBreakdown;

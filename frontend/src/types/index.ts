@@ -137,6 +137,7 @@ export interface UpdateTeamPayload {
 export interface ProjectListItem {
   id: number;
   name: string;
+  issuePrefix?: string;
   description: string | null;
   startDate: string | null;
   endDate: string | null;
@@ -209,6 +210,7 @@ export interface ProjectInvitationPreview {
 
 export interface CreateProjectPayload {
   name: string;
+  issuePrefix?: string;
   description?: string;
   startDate: string;
   endDate?: string;
@@ -218,6 +220,7 @@ export interface CreateProjectPayload {
 
 export interface UpdateProjectPayload {
   name: string;
+  issuePrefix?: string;
   description?: string;
   startDate: string;
   endDate?: string;

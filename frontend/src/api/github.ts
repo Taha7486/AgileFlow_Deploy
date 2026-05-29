@@ -2,6 +2,7 @@ import axiosInstance from './axiosInstance';
 import type {
   Branch,
   CreateBranchRequest,
+  CreatePullRequestRequest,
   DevelopmentPanelData,
   GitHubCommit,
   GitHubConnectRequest,
@@ -68,6 +69,11 @@ export const getTaskBranches = async (taskId: number): Promise<Branch[]> => {
 
 export const createBranchForTask = async (taskId: number, data: CreateBranchRequest): Promise<Branch> => {
   const response = await axiosInstance.post<Branch>(`/github/tasks/${taskId}/create-branch`, data);
+  return response.data;
+};
+
+export const createPullRequestForTask = async (taskId: number, data: CreatePullRequestRequest): Promise<GitHubPullRequest> => {
+  const response = await axiosInstance.post<GitHubPullRequest>(`/github/tasks/${taskId}/create-pull-request`, data);
   return response.data;
 };
 

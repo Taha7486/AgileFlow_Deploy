@@ -30,6 +30,7 @@ import { ALLOWED_CHILD_TYPES } from '../../types/planning.types';
 import { formatDateFR, isOverdue, PRIORITE_CONFIG, STATUT_CONFIG, userFullName } from '../../utils/planningHelpers';
 import TaskTypeIcon from '../../components/planning/TaskTypeIcon';
 import CreateSubtaskModal from '../../components/planning/CreateSubtaskModal';
+import { formatIssueKey } from '../../utils/issueKey';
 
 interface Props {
   task: PlanningTask;
@@ -89,7 +90,7 @@ const PlanningTaskRow = ({ task, selected, onSelect, onOpen, depth = 0 }: Props)
               
               <TaskTypeIcon type={task.typeTache} size={16} isChild={depth > 0} />
               
-              <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>KAN-{task.id}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>{formatIssueKey(task.project?.issuePrefix, task.id)}</Typography>
               
               <Box sx={{ display: 'flex', flexDirection: 'column', ml: 1, minWidth: 0 }}>
                 {editingTitle ? (

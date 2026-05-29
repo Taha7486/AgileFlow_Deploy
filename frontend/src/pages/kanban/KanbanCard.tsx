@@ -21,6 +21,7 @@ import type { KanbanTask, KanbanTypeTache } from '../../types/kanban.types';
 import { getLabelColor } from '../../utils/kanbanHelpers';
 import { useKanbanStore } from '../../store/kanbanStore';
 import KanbanCardMenu from './KanbanCardMenu';
+import { formatIssueKey } from '../../utils/issueKey';
 
 interface Props {
   task: KanbanTask;
@@ -141,7 +142,7 @@ const KanbanCard = ({ task, isDragging: overlayDragging = false }: Props) => {
               <TypeIcon sx={{ fontSize: 12 }} />
             </Box>
           </Tooltip>
-          <Typography sx={{ fontSize: 12, color: '#6B778C', whiteSpace: 'nowrap' }}>KAN-{task.id}</Typography>
+          <Typography sx={{ fontSize: 12, color: '#6B778C', whiteSpace: 'nowrap' }}>{formatIssueKey(task.project?.issuePrefix, task.id)}</Typography>
           {task.sousTaskeCount > 0 && (
             <Tooltip title={`Sous-taches : ${task.sousTaskesDoneCount}/${task.sousTaskeCount}`}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, color: '#6B778C' }}>

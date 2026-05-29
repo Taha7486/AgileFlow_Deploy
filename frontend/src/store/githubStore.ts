@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { AxiosError } from 'axios';
 import {
   createBranchForTask,
+  createPullRequestForTask,
   connectGitHub,
   disconnectGitHub,
   getGitHubCommits,
@@ -32,6 +33,7 @@ interface GitHubState {
   fetchProjectDevelopment: (projectId: number, page?: number) => Promise<void>;
   fetchTaskDevelopmentPanel: (taskId: number) => Promise<void>;
   createBranch: (taskId: number, branchName: string, fromBranch: string) => Promise<Branch>;
+  createPullRequest: (taskId: number, title: string, body: string, headBranch: string, baseBranch: string) => Promise<GitHubPullRequest>;
   clearDevelopment: () => void;
 }
 
@@ -148,9 +150,19 @@ export const useGitHubStore = create<GitHubState>((set, get) => ({
     set((state) => {
       const next = { ...state.taskDevelopmentPanel };
       delete next[taskId];
-      return { taskDevelopmentPanel: next };
+      return { taskDevelopmentPanel: next, projectDevelopment: null };
     });
     return branch;
+  },
+
+  createPullRequest: async (taskId, title, body, headBranch, baseBranch) => {
+    const pullRequest = await createPullRequestForTask(taskId, { title, body, headBranch, baseBranch });
+    set((state) => {
+      const next = { ...state.taskDevelopmentPanel };
+      delete next[taskId];
+      return { taskDevelopmentPanel: next, projectDevelopment: null };
+    });
+    return pullRequest;
   },
 
   clearDevelopment: () => set({ projectDevelopment: null, taskDevelopmentPanel: {}, developmentError: null }),

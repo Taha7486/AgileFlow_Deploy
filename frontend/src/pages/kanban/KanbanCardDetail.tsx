@@ -27,6 +27,7 @@ import { COLUMN_CONFIG, PRIORITE_CONFIG, TYPE_CONFIG } from '../../types/kanban.
 import type { KanbanPriorite, KanbanStatut, KanbanTask } from '../../types/kanban.types';
 import type { CommentItem, ProjectMember } from '../../types';
 import { formatDateFR, isOverdue } from '../../utils/kanbanHelpers';
+import { formatIssueKey } from '../../utils/issueKey';
 
 interface Props {
   taskId: number;
@@ -95,7 +96,7 @@ const KanbanCardDetail = ({ taskId, onClose }: Props) => {
       <Box sx={{ height: 52, display: 'flex', alignItems: 'center', px: 1.5, borderBottom: '1px solid #DFE1E6', gap: 1 }}>
         <IconButton onClick={onClose}><ArrowBack /></IconButton>
         <Typography sx={{ flex: 1, fontSize: 13, color: '#6B778C' }}>
-          {task.sprint?.nom ?? 'Backlog'} / KAN-{task.id}
+          {task.sprint?.nom ?? 'Backlog'} / {formatIssueKey(task.project?.issuePrefix, task.id)}
         </Typography>
         <IconButton onClick={onClose}><Close /></IconButton>
       </Box>

@@ -21,10 +21,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 @Service
 public class ProjectService {
+    private static final Pattern ISSUE_PREFIX_PATTERN = Pattern.compile("^[A-Z0-9]{2,10}$");
 
     private final ProjectRepository projectRepository;
     private final SprintRepository sprintRepository;
@@ -57,6 +60,18 @@ public class ProjectService {
         }
     }
 
+    private String normalizeIssuePrefix(String value) {
+        String prefix = value == null || value.isBlank() ? "KAN" : value.trim().toUpperCase(Locale.ROOT);
+        if (!ISSUE_PREFIX_PATTERN.matcher(prefix).matches()) {
+            throw new BadRequestException("Le prefixe des taches doit contenir 2 a 10 lettres ou chiffres, sans espace.");
+        }
+        return prefix;
+    }
+
+    private String issuePrefix(Project project) {
+        return project.getIssuePrefix() == null || project.getIssuePrefix().isBlank() ? "KAN" : project.getIssuePrefix();
+    }
+
     private void validateDates(UpdateProjectRequest request) {
         if (request.endDate() != null && request.endDate().isBefore(request.startDate())) {
             throw new BadRequestException("La date de fin doit etre posterieure a la date de debut.");
@@ -83,6 +98,7 @@ public class ProjectService {
         return new ProjectDTO(
                 project.getId(),
                 project.getNom(),
+                issuePrefix(project),
                 project.getDescription(),
                 project.getDateDebut() != null ? project.getDateDebut().toString() : null,
                 project.getDateFin() != null ? project.getDateFin().toString() : null,
@@ -133,6 +149,7 @@ public class ProjectService {
 
         Project project = Project.builder()
                 .nom(request.name())
+                .issuePrefix(normalizeIssuePrefix(request.issuePrefix()))
                 .description(request.description())
                 .dateDebut(request.startDate())
                 .dateFin(request.endDate())
@@ -153,6 +170,7 @@ public class ProjectService {
         validateDates(request);
 
         project.setNom(request.name());
+        project.setIssuePrefix(normalizeIssuePrefix(request.issuePrefix()));
         project.setDescription(request.description());
         project.setDateDebut(request.startDate());
         project.setDateFin(request.endDate());

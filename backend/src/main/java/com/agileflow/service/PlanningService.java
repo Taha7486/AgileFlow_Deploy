@@ -402,7 +402,7 @@ public class PlanningService {
                 toUserSummary(task.getAssignedBy()),
                 task.getSprint() != null ? new SprintSummaryDto(task.getSprint().getId(), task.getSprint().getNom(), name(task.getSprint().getStatut())) : null,
                 story != null ? new StorySummaryDto(story.getId(), story.getTitre(), name(story.getPriority())) : null,
-                project != null ? new ProjectSummaryDto(project.getId(), project.getNom()) : null,
+                project != null ? new ProjectSummaryDto(project.getId(), project.getNom(), issuePrefix(project)) : null,
                 commentRepository.countByTask_Id(task.getId()),
                 task.getSousTaskes() != null ? task.getSousTaskes().size() : 0,
                 updatedAgo(task.getDateMiseAJour() != null ? task.getDateMiseAJour() : task.getDateCreation()),
@@ -430,6 +430,12 @@ public class PlanningService {
                 tasks.stream().filter(t -> t.getStatut() != Task.Statut.DONE && t.isUrgent()).count(),
                 tasks.stream().filter(t -> t.getDateEcheance() != null && t.getDateEcheance().isBefore(now) && t.getStatut() != Task.Statut.DONE).count()
         );
+    }
+
+    private String issuePrefix(Project project) {
+        return project != null && project.getIssuePrefix() != null && !project.getIssuePrefix().isBlank()
+                ? project.getIssuePrefix()
+                : "KAN";
     }
 
     private void applyBulkAction(Task task, BulkActionRequest request) {

@@ -4,7 +4,6 @@ import {
   Alert,
   Avatar,
   Box,
-  Button,
   Chip,
   CircularProgress,
   Grid,
@@ -24,6 +23,7 @@ import {
   TablePagination,
   TableRow,
   Tabs,
+  TextField,
   Typography,
 } from '@mui/material';
 import {
@@ -35,16 +35,15 @@ import {
   HourglassEmpty,
   Merge,
   OpenInNew,
-  Refresh,
   Source,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/layout/PageHeader';
-import GitHubDevelopmentPanel from '../../components/github/GitHubDevelopmentPanel';
-import { syncGitHubIssues } from '../../api/github';
 import { useActiveProjectStore } from '../../store/activeProjectStore';
 import { useGitHubStore } from '../../store/githubStore';
 import type { GitHubPullRequest } from '../../types/github';
+import { formatIssueKey, issueKeySearchValues } from '../../utils/issueKey';
+import GitHubIntegrationPanel from '../../components/github/GitHubIntegrationPanel';
 
 const formatRelative = (iso: string | null) => {
   if (!iso) return '';
@@ -87,7 +86,9 @@ const DevelopmentPage = () => {
   const activeProject = useActiveProjectStore((state) => state.activeProject);
   const { projectDevelopment, isLoadingDevelopment, developmentError, fetchProjectDevelopment } = useGitHubStore();
   const [tab, setTab] = useState(0);
-  const [syncing, setSyncing] = useState(false);
+  const [branchSearch, setBranchSearch] = useState('');
+  const [commitSearch, setCommitSearch] = useState('');
+  const issuePrefix = projectDevelopment?.issuePrefix ?? activeProject?.issuePrefix;
 
   useEffect(() => {
     if (activeProject?.id) void fetchProjectDevelopment(activeProject.id);
@@ -103,21 +104,38 @@ const DevelopmentPage = () => {
 
   const prs = useMemo(() => {
     if (!projectDevelopment) return [];
-    if (tab === 0) return projectDevelopment.openPullRequests;
-    if (tab === 1) return projectDevelopment.mergedPullRequests;
-    return [...projectDevelopment.openPullRequests, ...projectDevelopment.mergedPullRequests];
+    const rows = tab === 0
+      ? projectDevelopment.openPullRequests
+      : tab === 1
+        ? projectDevelopment.mergedPullRequests
+        : [...projectDevelopment.openPullRequests, ...projectDevelopment.mergedPullRequests];
+    return rows;
   }, [projectDevelopment, tab]);
 
-  const handleSync = async () => {
-    if (!activeProject?.id) return;
-    setSyncing(true);
-    try {
-      await syncGitHubIssues(activeProject.id);
-      await fetchProjectDevelopment(activeProject.id);
-    } finally {
-      setSyncing(false);
-    }
-  };
+  const filteredBranches = useMemo(() => {
+    if (!projectDevelopment) return [];
+    const q = branchSearch.trim().toLowerCase();
+    if (!q) return projectDevelopment.activeBranches;
+    return projectDevelopment.activeBranches.filter((branch) =>
+      branch.name.toLowerCase().includes(q)
+      || branch.sha?.toLowerCase().includes(q)
+      || issueKeySearchValues(issuePrefix, branch.taskId).some((value) => value.includes(q))
+    );
+  }, [branchSearch, issuePrefix, projectDevelopment]);
+
+  const filteredCommits = useMemo(() => {
+    if (!projectDevelopment) return [];
+    const q = commitSearch.trim().toLowerCase();
+    if (!q) return projectDevelopment.recentCommits;
+    return projectDevelopment.recentCommits.filter((commit) =>
+      commit.message.toLowerCase().includes(q)
+      || commit.shortSha.toLowerCase().includes(q)
+      || commit.sha.toLowerCase().includes(q)
+      || commit.authorLogin.toLowerCase().includes(q)
+      || issueKeySearchValues(issuePrefix, commit.linkedTaskId).some((value) => value.includes(q))
+      || commit.mentionedTaskIds.some((id) => issueKeySearchValues(issuePrefix, id).some((value) => value.includes(q)))
+    );
+  }, [commitSearch, issuePrefix, projectDevelopment]);
 
   if (!activeProject) {
     return <Alert severity="info">Selectionnez un projet pour afficher le developpement.</Alert>;
@@ -131,17 +149,17 @@ const DevelopmentPage = () => {
     <Box>
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} sx={{ mb: 2 }}>
         <PageHeader icon={<GitHub />} title="Developpement" subtitle="Branches, pull requests et commits GitHub du projet" />
-        <Button variant="contained" startIcon={<Refresh />} onClick={handleSync} disabled={syncing}>
-          {syncing ? 'Synchronisation...' : 'Synchroniser'}
-        </Button>
       </Stack>
 
       {developmentError && <Alert severity="error" sx={{ mb: 2 }}>{developmentError}</Alert>}
 
+      <Box sx={{ mb: 2 }}>
+        <GitHubIntegrationPanel projectId={activeProject.id} onChanged={() => fetchProjectDevelopment(activeProject.id)} />
+      </Box>
+
       {!projectDevelopment?.connected ? (
         <Alert severity="info" sx={{ mb: 2 }}>
-          Aucun depot GitHub n'est connecte. Configurez l'integration depuis le resume du projet.
-          <Button size="small" onClick={() => navigate(`/projects/${activeProject.id}/summary`)}>Ouvrir le resume</Button>
+          Connectez un depot GitHub pour afficher les branches, pull requests et commits du projet.
         </Alert>
       ) : (
         <>
@@ -189,7 +207,7 @@ const DevelopmentPage = () => {
                     <TableRow key={pr.number} hover>
                       <TableCell><PrStatusChip pr={pr} /></TableCell>
                       <TableCell><Link href={pr.url || pr.htmlUrl} target="_blank" rel="noreferrer" fontWeight={700}>#{pr.number} {pr.title}</Link></TableCell>
-                      <TableCell>{pr.linkedTaskId ? <Chip size="small" label={`KAN-${pr.linkedTaskId}`} onClick={() => navigate('/planning')} /> : '-'}</TableCell>
+                      <TableCell>{pr.linkedTaskId ? <Chip size="small" label={formatIssueKey(issuePrefix, pr.linkedTaskId)} onClick={() => navigate('/planning')} /> : '-'}</TableCell>
                       <TableCell>{pr.headBranch} {'->'} {pr.baseBranch}</TableCell>
                       <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}><ChecksIcon status={pr.checksStatus} /></TableCell>
                       <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}><Box component="span" color="success.main">+{pr.additions}</Box> <Box component="span" color="error.main">-{pr.deletions}</Box></TableCell>
@@ -215,23 +233,43 @@ const DevelopmentPage = () => {
           <Grid container spacing={2}>
             <Grid item xs={12} md={5}>
               <Paper elevation={0} sx={{ p: 2, border: '1px solid #DFE1E6', borderRadius: 2 }}>
-                <Typography fontWeight={900} sx={{ mb: 1 }}>Branches actives</Typography>
-                {projectDevelopment.activeBranches.map((branch) => (
-                  <Stack key={`${branch.taskId}-${branch.name}`} direction="row" spacing={1} alignItems="center" sx={{ py: 0.75, borderTop: '1px solid #F0F1F3' }}>
-                    <Typography fontFamily="monospace" fontSize={13} sx={{ flex: 1 }}>{branch.name}</Typography>
-                    {branch.taskId && <Chip size="small" label={`KAN-${branch.taskId}`} />}
-                    <Typography fontFamily="monospace" fontSize={12} color="text.secondary">{branch.sha?.slice(0, 7)}</Typography>
-                  </Stack>
-                ))}
-                {projectDevelopment.activeBranches.length === 0 && <Typography color="text.secondary">Aucune branche liee.</Typography>}
+                <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} spacing={1} sx={{ mb: 1 }}>
+                  <Typography fontWeight={900}>Branches actives</Typography>
+                  <TextField
+                    size="small"
+                    label="Rechercher"
+                    value={branchSearch}
+                    onChange={(event) => setBranchSearch(event.target.value)}
+                    sx={{ width: { xs: '100%', sm: 220 } }}
+                  />
+                </Stack>
+                <Box sx={{ maxHeight: 300, overflowY: 'auto', pr: 0.5 }}>
+                  {filteredBranches.map((branch) => (
+                    <Stack key={`${branch.taskId}-${branch.name}`} direction="row" spacing={1} alignItems="center" sx={{ py: 0.75, borderTop: '1px solid #F0F1F3' }}>
+                      <Typography fontFamily="monospace" fontSize={13} sx={{ flex: 1 }}>{branch.name}</Typography>
+                      {branch.taskId && <Chip size="small" label={formatIssueKey(issuePrefix, branch.taskId)} />}
+                      <Typography fontFamily="monospace" fontSize={12} color="text.secondary">{branch.sha?.slice(0, 7)}</Typography>
+                    </Stack>
+                  ))}
+                </Box>
+                {filteredBranches.length === 0 && <Typography color="text.secondary">Aucune branche liee.</Typography>}
               </Paper>
             </Grid>
             <Grid item xs={12} md={7}>
               <Paper elevation={0} sx={{ p: 2, border: '1px solid #DFE1E6', borderRadius: 2 }}>
-                <Typography fontWeight={900} sx={{ mb: 1 }}>Commits recents</Typography>
-                <List dense>
-                  {projectDevelopment.recentCommits.map((commit) => (
-                    <ListItem key={commit.sha} divider secondaryAction={commit.linkedTaskId ? <Chip size="small" label={`KAN-${commit.linkedTaskId}`} /> : undefined}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} spacing={1} sx={{ mb: 1 }}>
+                  <Typography fontWeight={900}>Commits recents</Typography>
+                  <TextField
+                    size="small"
+                    label="Rechercher"
+                    value={commitSearch}
+                    onChange={(event) => setCommitSearch(event.target.value)}
+                    sx={{ width: { xs: '100%', sm: 240 } }}
+                  />
+                </Stack>
+                <List dense sx={{ maxHeight: 300, overflowY: 'auto', pr: 0.5 }}>
+                  {filteredCommits.map((commit) => (
+                    <ListItem key={commit.sha} divider secondaryAction={commit.linkedTaskId ? <Chip size="small" label={formatIssueKey(issuePrefix, commit.linkedTaskId)} /> : undefined}>
                       <ListItemAvatar><Avatar src={commit.authorAvatarUrl}>{commit.authorLogin?.[0]}</Avatar></ListItemAvatar>
                       <ListItemText
                         primary={<Link href={commit.url || commit.htmlUrl} target="_blank" rel="noreferrer" fontFamily="monospace">{commit.shortSha}</Link>}
@@ -240,19 +278,10 @@ const DevelopmentPage = () => {
                     </ListItem>
                   ))}
                 </List>
+                {filteredCommits.length === 0 && <Typography color="text.secondary">Aucun commit.</Typography>}
               </Paper>
             </Grid>
           </Grid>
-
-          <Paper elevation={0} sx={{ p: 2, border: '1px solid #DFE1E6', borderRadius: 2, mt: 2 }}>
-            <Typography fontWeight={900} sx={{ mb: 1 }}>Developpement par tache</Typography>
-            {projectDevelopment.activeBranches.map((branch) => branch.taskId).filter((id): id is number => Boolean(id)).filter((id, index, list) => list.indexOf(id) === index).map((taskId) => (
-              <Box key={taskId} sx={{ mb: 1 }}>
-                <GitHubDevelopmentPanel taskId={taskId} />
-              </Box>
-            ))}
-            {projectDevelopment.activeBranches.length === 0 && <Typography color="text.secondary">Aucune tache avec developpement lie.</Typography>}
-          </Paper>
         </>
       )}
     </Box>

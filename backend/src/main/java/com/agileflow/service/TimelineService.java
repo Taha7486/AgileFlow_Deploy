@@ -104,7 +104,7 @@ public class TimelineService {
 
         List<Task> periodTasks = visibleTasks.isEmpty() ? allTasks : visibleTasks;
         return new TimelineDto(
-                new ProjectSummaryDto(project.getId(), project.getNom()),
+                new ProjectSummaryDto(project.getId(), project.getNom(), issuePrefix(project)),
                 new ArrayList<>(epics.values()),
                 List.of(),
                 buildPeriode(periodTasks),
@@ -422,6 +422,12 @@ public class TimelineService {
 
     private String name(Enum<?> value) {
         return value != null ? value.name() : null;
+    }
+
+    private String issuePrefix(Project project) {
+        return project != null && project.getIssuePrefix() != null && !project.getIssuePrefix().isBlank()
+                ? project.getIssuePrefix()
+                : "KAN";
     }
 
     private String toIso(LocalDateTime value) {

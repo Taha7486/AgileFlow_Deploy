@@ -13,7 +13,9 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  FormControl,
   IconButton,
+  InputLabel,
   Link,
   MenuItem,
   Paper,
@@ -39,7 +41,8 @@ import {
 import { getRepoBranches, suggestBranchName } from '../../api/github';
 import { useActiveProjectStore } from '../../store/activeProjectStore';
 import { useGitHubStore } from '../../store/githubStore';
-import type { GitHubCommit, GitHubPullRequest } from '../../types/github';
+import type { DevelopmentPanelData, GitHubCommit, GitHubPullRequest } from '../../types/github';
+import { formatIssueKey, normalizeIssuePrefix } from '../../utils/issueKey';
 
 interface Props {
   taskId: number;
@@ -70,12 +73,25 @@ const ChecksIcon = ({ status }: { status: GitHubPullRequest['checksStatus'] }) =
   return <HelpOutline color="disabled" fontSize="small" />;
 };
 
-const CommitRow = ({ commit }: { commit: GitHubCommit }) => (
+const getErrorMessage = (error: unknown) => {
+  const maybeAxios = error as { response?: { data?: { message?: string } } };
+  return maybeAxios.response?.data?.message
+    ?? (error instanceof Error ? error.message : 'Impossible de creer la branche');
+};
+
+const buildPullRequestTitle = (taskId: number, prefix?: string | null, taskTitre?: string) => {
+  const issueKey = formatIssueKey(prefix, taskId);
+  const trimmed = taskTitre?.trim() ?? '';
+  if (!trimmed) return issueKey;
+  return trimmed.toUpperCase().startsWith(issueKey) ? trimmed : `${issueKey} ${trimmed}`;
+};
+
+const CommitRow = ({ commit, issuePrefix }: { commit: GitHubCommit; issuePrefix?: string | null }) => (
   <Box sx={{ py: 0.75, borderTop: '1px solid #F0F1F3' }}>
     <Stack direction="row" alignItems="center" spacing={1}>
       <Typography fontSize={12} fontWeight={800} fontFamily="monospace">{commit.shortSha}</Typography>
       <Link href={commit.url || commit.htmlUrl} target="_blank" rel="noreferrer"><OpenInNew sx={{ fontSize: 14 }} /></Link>
-      {commit.linkedTaskId && <Chip size="small" label={`KAN-${commit.linkedTaskId}`} />}
+      {commit.linkedTaskId && <Chip size="small" label={formatIssueKey(issuePrefix, commit.linkedTaskId)} />}
     </Stack>
     <Typography fontSize={13}>{commit.message.length > 90 ? `${commit.message.slice(0, 90)}...` : commit.message}</Typography>
     <Typography variant="caption" color="text.secondary">{commit.authorLogin} - {formatRelative(commit.committedAt)}</Typography>
@@ -84,31 +100,141 @@ const CommitRow = ({ commit }: { commit: GitHubCommit }) => (
 
 const GitHubDevelopmentPanel = ({ taskId, compact = false }: Props) => {
   const activeProject = useActiveProjectStore((state) => state.activeProject);
-  const { taskDevelopmentPanel, fetchTaskDevelopmentPanel, createBranch } = useGitHubStore();
+  const {
+    integration,
+    projectDevelopment,
+    taskDevelopmentPanel,
+    fetchIntegration,
+    fetchProjectDevelopment,
+    fetchTaskDevelopmentPanel,
+    createBranch,
+    createPullRequest,
+  } = useGitHubStore();
   const panel = taskDevelopmentPanel[taskId];
   const [createOpen, setCreateOpen] = useState(false);
+  const [prOpen, setPrOpen] = useState(false);
   const [branchName, setBranchName] = useState('');
   const [fromBranch, setFromBranch] = useState('main');
+  const [prTitle, setPrTitle] = useState('');
+  const [prBody, setPrBody] = useState('');
+  const [prHeadBranch, setPrHeadBranch] = useState('');
+  const [prBaseBranch, setPrBaseBranch] = useState('main');
   const [branches, setBranches] = useState<string[]>(['main']);
   const [loadingCreate, setLoadingCreate] = useState(false);
+  const [loadingPr, setLoadingPr] = useState(false);
+  const [loadingPanel, setLoadingPanel] = useState(true);
+  const [panelError, setPanelError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
+  const issuePrefix = normalizeIssuePrefix(panel?.issuePrefix ?? projectDevelopment?.issuePrefix ?? activeProject?.issuePrefix);
 
   useEffect(() => {
-    void fetchTaskDevelopmentPanel(taskId);
-  }, [fetchTaskDevelopmentPanel, taskId]);
+    let mounted = true;
+    setLoadingPanel(true);
+    setPanelError(null);
+    const load = async () => {
+      if (activeProject?.id && integration === null) {
+        await fetchIntegration(activeProject.id);
+      }
+      if (activeProject?.id && !projectDevelopment) {
+        await fetchProjectDevelopment(activeProject.id);
+      }
+      await fetchTaskDevelopmentPanel(taskId);
+    };
+    void load()
+      .catch(() => {
+        if (mounted) setPanelError('Aucune information GitHub disponible pour cette tache.');
+      })
+      .finally(() => {
+        if (mounted) setLoadingPanel(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [activeProject?.id, fetchIntegration, fetchProjectDevelopment, fetchTaskDevelopmentPanel, integration, projectDevelopment, taskId]);
 
   useEffect(() => {
-    if (!createOpen) return;
-    void suggestBranchName(taskId).then(setBranchName).catch(() => setBranchName(`feature/AGF-${taskId}`));
+    if (!createOpen && !prOpen) return;
+    if (createOpen) {
+      void suggestBranchName(taskId).then(setBranchName).catch(() => setBranchName(`feature/${formatIssueKey(issuePrefix, taskId)}`));
+    }
     if (activeProject?.id) {
       void getRepoBranches(activeProject.id).then((items) => {
         setBranches(items.length ? items : ['main']);
         setFromBranch(items[0] ?? 'main');
+        setPrBaseBranch(items.includes('main') ? 'main' : items[0] ?? 'main');
       }).catch(() => setBranches(['main', 'develop']));
     }
-  }, [activeProject?.id, createOpen, taskId]);
+  }, [activeProject?.id, createOpen, issuePrefix, prOpen, taskId]);
 
   const isValidBranch = useMemo(() => branchName.trim().length > 0 && !/\s/.test(branchName), [branchName]);
+  const isValidPr = useMemo(() =>
+    prTitle.trim().length > 0
+    && prHeadBranch.trim().length > 0
+    && prBaseBranch.trim().length > 0
+    && prHeadBranch !== prBaseBranch,
+  [prBaseBranch, prHeadBranch, prTitle]);
+
+  const displayPanel = useMemo<DevelopmentPanelData | undefined>(() => {
+    if (!projectDevelopment) return panel;
+
+    const projectPullRequests = [
+      ...projectDevelopment.openPullRequests,
+      ...projectDevelopment.mergedPullRequests,
+    ].filter((pr, index, list) =>
+      pr.linkedTaskId === taskId && list.findIndex((item) => item.number === pr.number) === index
+    );
+    const projectBranches = projectDevelopment.activeBranches.filter((branch) => branch.taskId === taskId);
+    const projectCommits = projectDevelopment.recentCommits.filter((commit) =>
+      commit.linkedTaskId === taskId || commit.mentionedTaskIds?.includes(taskId)
+    );
+
+    if (!panel) {
+      if (projectPullRequests.length === 0 && projectBranches.length === 0 && projectCommits.length === 0) {
+        return integration ? {
+          taskId,
+          issuePrefix,
+          taskTitre: formatIssueKey(issuePrefix, taskId),
+          taskStatut: '',
+          branches: [],
+          pullRequests: [],
+          commits: [],
+        } : undefined;
+      }
+      return {
+        taskId,
+        issuePrefix,
+        taskTitre: formatIssueKey(issuePrefix, taskId),
+        taskStatut: '',
+        branches: projectBranches,
+        pullRequests: projectPullRequests,
+        commits: projectCommits,
+      };
+    }
+
+    const branchNames = new Set(panel.branches.map((branch) => branch.name));
+    const prNumbers = new Set(panel.pullRequests.map((pr) => pr.number));
+    const commitShas = new Set(panel.commits.map((commit) => commit.sha));
+
+    return {
+      ...panel,
+      branches: [
+        ...panel.branches,
+        ...projectBranches.filter((branch) => !branchNames.has(branch.name)),
+      ],
+      pullRequests: [
+        ...panel.pullRequests,
+        ...projectPullRequests.filter((pr) => !prNumbers.has(pr.number)),
+      ],
+      commits: [
+        ...panel.commits,
+        ...projectCommits.filter((commit) => !commitShas.has(commit.sha)),
+      ],
+    };
+  }, [integration, issuePrefix, panel, projectDevelopment, taskId]);
+
+  const taskBranchOptions = useMemo(() => (
+    [...new Set(displayPanel?.branches.map((branch) => branch.name).filter(Boolean) ?? [])]
+  ), [displayPanel?.branches]);
 
   const handleCreateBranch = async () => {
     if (!isValidBranch) return;
@@ -116,30 +242,61 @@ const GitHubDevelopmentPanel = ({ taskId, compact = false }: Props) => {
     try {
       await createBranch(taskId, branchName.trim(), fromBranch);
       await fetchTaskDevelopmentPanel(taskId);
+      if (activeProject?.id) await fetchProjectDevelopment(activeProject.id);
       setToast({ message: 'Branche creee avec succes', severity: 'success' });
       setCreateOpen(false);
     } catch (error) {
-      setToast({ message: error instanceof Error ? error.message : 'Impossible de creer la branche', severity: 'error' });
+      setToast({ message: getErrorMessage(error), severity: 'error' });
     } finally {
       setLoadingCreate(false);
     }
   };
 
-  const content = !panel ? (
+  const openPrDialog = () => {
+    const firstBranch = taskBranchOptions[0] ?? '';
+    setPrHeadBranch(firstBranch);
+    setPrTitle(buildPullRequestTitle(taskId, issuePrefix, displayPanel?.taskTitre));
+    setPrBody(`Liee a la tache ${formatIssueKey(issuePrefix, taskId)}`);
+    setPrOpen(true);
+  };
+
+  const handleCreatePullRequest = async () => {
+    if (!isValidPr) return;
+    setLoadingPr(true);
+    try {
+      await createPullRequest(taskId, prTitle.trim(), prBody.trim(), prHeadBranch.trim(), prBaseBranch.trim());
+      await fetchTaskDevelopmentPanel(taskId);
+      if (activeProject?.id) await fetchProjectDevelopment(activeProject.id);
+      setToast({ message: 'Pull request creee avec succes', severity: 'success' });
+      setPrOpen(false);
+    } catch (error) {
+      setToast({ message: getErrorMessage(error), severity: 'error' });
+    } finally {
+      setLoadingPr(false);
+    }
+  };
+
+  const content = loadingPanel ? (
     <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress size={22} /></Box>
+  ) : !displayPanel ? (
+    <Alert severity="info" sx={{ py: 0.5 }}>
+      {panelError ?? (integration
+        ? 'Aucune branche, pull request ou commit GitHub lie a cette tache.'
+        : 'Aucune integration GitHub configuree pour ce projet.')}
+    </Alert>
   ) : (
     <Stack spacing={compact ? 1.5 : 2}>
       <Box>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
           <Stack direction="row" alignItems="center" spacing={1}>
             <AccountTree fontSize="small" color="success" />
-            <Typography fontWeight={800}>Branches ({panel.branches.length})</Typography>
+            <Typography fontWeight={800}>Branches ({displayPanel.branches.length})</Typography>
           </Stack>
           <Button size="small" startIcon={<Add />} onClick={() => setCreateOpen(true)}>Creer</Button>
         </Stack>
-        {panel.branches.length === 0 ? (
+        {displayPanel.branches.length === 0 ? (
           <Typography fontSize={13} color="text.secondary">Aucune branche liee.</Typography>
-        ) : panel.branches.map((branch) => (
+        ) : displayPanel.branches.map((branch) => (
           <Stack key={branch.name} direction="row" alignItems="center" spacing={1} sx={{ py: 0.5 }}>
             <Typography fontSize={13} fontFamily="monospace" sx={{ flex: 1 }}>{branch.name}</Typography>
             <Typography fontSize={12} color="text.secondary">{branch.sha?.slice(0, 7)}</Typography>
@@ -150,11 +307,12 @@ const GitHubDevelopmentPanel = ({ taskId, compact = false }: Props) => {
       <Box>
         <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
           <Source fontSize="small" color="primary" />
-          <Typography fontWeight={800}>Pull Requests ({panel.pullRequests.length})</Typography>
+          <Typography fontWeight={800}>Pull Requests ({displayPanel.pullRequests.length})</Typography>
+          <Button size="small" startIcon={<Add />} onClick={openPrDialog}>Creer une PR</Button>
         </Stack>
-        {panel.pullRequests.length === 0 ? (
+        {displayPanel.pullRequests.length === 0 ? (
           <Typography fontSize={13} color="text.secondary">Aucune pull request liee.</Typography>
-        ) : panel.pullRequests.map((pr) => (
+        ) : displayPanel.pullRequests.map((pr) => (
           <Box key={pr.number} sx={{ py: 0.75, borderTop: '1px solid #F0F1F3' }}>
             <Stack direction="row" alignItems="center" spacing={1}>
               {prStatusChip(pr)}
@@ -169,8 +327,8 @@ const GitHubDevelopmentPanel = ({ taskId, compact = false }: Props) => {
       </Box>
       <Divider />
       <Box>
-        <Typography fontWeight={800} sx={{ mb: 1 }}>Commits ({panel.commits.length})</Typography>
-        {panel.commits.length === 0 ? <Typography fontSize={13} color="text.secondary">Aucun commit lie.</Typography> : panel.commits.map((commit) => <CommitRow key={commit.sha} commit={commit} />)}
+        <Typography fontWeight={800} sx={{ mb: 1 }}>Commits ({displayPanel.commits.length})</Typography>
+        {displayPanel.commits.length === 0 ? <Typography fontSize={13} color="text.secondary">Aucun commit lie.</Typography> : displayPanel.commits.map((commit) => <CommitRow key={commit.sha} commit={commit} issuePrefix={issuePrefix} />)}
       </Box>
     </Stack>
   );
@@ -192,16 +350,62 @@ const GitHubDevelopmentPanel = ({ taskId, compact = false }: Props) => {
         </DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>
-            <TextField label="Nom de la branche" value={branchName} onChange={(event) => setBranchName(event.target.value)} error={!isValidBranch} helperText={!isValidBranch ? 'Nom requis, sans espaces.' : 'Exemple : feature/AGF-42-fix-login'} fullWidth />
-            <Select value={fromBranch} onChange={(event) => setFromBranch(event.target.value)} fullWidth>
-              {branches.map((branch) => <MenuItem key={branch} value={branch}>{branch}</MenuItem>)}
-            </Select>
+            <Alert severity="info">
+              Utilisez un nom lie a la tache, par exemple <strong>feature/{formatIssueKey(issuePrefix, taskId)}-fix-login</strong>.
+              Les formats <strong>{formatIssueKey(issuePrefix, taskId)}</strong>, <strong>#{taskId}</strong> et <strong>task/{taskId}</strong> sont reconnus.
+            </Alert>
+            <TextField label="Nom de la branche" value={branchName} onChange={(event) => setBranchName(event.target.value)} error={!isValidBranch} helperText={!isValidBranch ? 'Nom requis, sans espaces.' : undefined} fullWidth />
+            <FormControl fullWidth>
+              <InputLabel id="create-branch-base-label">Depuis la branche</InputLabel>
+              <Select labelId="create-branch-base-label" label="Depuis la branche" value={fromBranch} onChange={(event) => setFromBranch(event.target.value)} fullWidth>
+                {branches.map((branch) => <MenuItem key={branch} value={branch}>{branch}</MenuItem>)}
+              </Select>
+            </FormControl>
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCreateOpen(false)} disabled={loadingCreate}>Annuler</Button>
           <Button onClick={handleCreateBranch} variant="contained" disabled={loadingCreate || !isValidBranch}>
             {loadingCreate ? 'Creation...' : 'Creer'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={prOpen} onClose={() => setPrOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          Creer une pull request
+          <IconButton onClick={() => setPrOpen(false)}><Close /></IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Alert severity="info">
+              Exemple: titre <strong>{formatIssueKey(issuePrefix, taskId)} Fix login</strong>. Pour fermer automatiquement la tache via commit:
+              <strong> fixes {formatIssueKey(issuePrefix, taskId)}</strong> ou <strong>closes {formatIssueKey(issuePrefix, taskId)}</strong>.
+            </Alert>
+            <TextField label="Titre" value={prTitle} onChange={(event) => setPrTitle(event.target.value)} fullWidth />
+            <TextField label="Description" value={prBody} onChange={(event) => setPrBody(event.target.value)} multiline rows={3} fullWidth />
+            <FormControl fullWidth>
+              <InputLabel id="create-pr-head-label">Branche source</InputLabel>
+              <Select labelId="create-pr-head-label" label="Branche source" value={prHeadBranch} onChange={(event) => setPrHeadBranch(event.target.value)} fullWidth>
+                {taskBranchOptions.map((branch) => (
+                  <MenuItem key={branch} value={branch}>{branch}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {taskBranchOptions.length === 0 && <Alert severity="info">Creez d'abord une branche pour cette tache.</Alert>}
+            <FormControl fullWidth>
+              <InputLabel id="create-pr-base-label">Branche cible</InputLabel>
+              <Select labelId="create-pr-base-label" label="Branche cible" value={prBaseBranch} onChange={(event) => setPrBaseBranch(event.target.value)} fullWidth>
+                {branches.map((branch) => <MenuItem key={branch} value={branch}>{branch}</MenuItem>)}
+              </Select>
+            </FormControl>
+            {prHeadBranch === prBaseBranch && <Alert severity="warning">La branche source doit etre differente de la branche cible.</Alert>}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPrOpen(false)} disabled={loadingPr}>Annuler</Button>
+          <Button onClick={handleCreatePullRequest} variant="contained" disabled={loadingPr || !isValidPr}>
+            {loadingPr ? 'Creation...' : 'Creer la PR'}
           </Button>
         </DialogActions>
       </Dialog>

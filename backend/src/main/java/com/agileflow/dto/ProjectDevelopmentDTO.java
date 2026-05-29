@@ -4,6 +4,7 @@ import java.util.List;
 
 public record ProjectDevelopmentDTO(
         Long projectId,
+        String issuePrefix,
         String repoFullName,
         boolean connected,
         List<GitHubPullRequestDTO> openPullRequests,

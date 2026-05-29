@@ -75,7 +75,7 @@ public class KanbanService {
                 .toList();
 
         return new KanbanBoardDto(
-                new ProjectSummaryDto(project.getId(), project.getNom()),
+                new ProjectSummaryDto(project.getId(), project.getNom(), issuePrefix(project)),
                 sprint != null ? new SprintSummaryDto(sprint.getId(), sprint.getNom(), name(sprint.getStatut())) : null,
                 buildColumns(tasks),
                 buildStats(tasks)
@@ -169,7 +169,7 @@ public class KanbanService {
                 toUserSummary(task.getAssignedBy()),
                 task.getSprint() != null ? new SprintSummaryDto(task.getSprint().getId(), task.getSprint().getNom(), name(task.getSprint().getStatut())) : null,
                 story != null ? new StorySummaryDto(story.getId(), story.getTitre(), name(story.getPriority())) : null,
-                project != null ? new ProjectSummaryDto(project.getId(), project.getNom()) : null,
+                project != null ? new ProjectSummaryDto(project.getId(), project.getNom(), issuePrefix(project)) : null,
                 commentRepository.countByTask_Id(task.getId()),
                 subtaskCount,
                 doneSubtaskCount,
@@ -223,6 +223,12 @@ public class KanbanService {
             }
             return cb.and(predicates.toArray(Predicate[]::new));
         };
+    }
+
+    private String issuePrefix(Project project) {
+        return project != null && project.getIssuePrefix() != null && !project.getIssuePrefix().isBlank()
+                ? project.getIssuePrefix()
+                : "KAN";
     }
 
     private List<KanbanColumnDto> buildColumns(List<Task> tasks) {

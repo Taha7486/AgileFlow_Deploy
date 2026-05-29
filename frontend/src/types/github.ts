@@ -77,8 +77,16 @@ export interface CreateBranchRequest {
   fromBranch: string;
 }
 
+export interface CreatePullRequestRequest {
+  title: string;
+  body: string;
+  headBranch: string;
+  baseBranch: string;
+}
+
 export interface DevelopmentPanelData {
   taskId: number;
+  issuePrefix: string;
   taskTitre: string;
   taskStatut: string;
   branches: Branch[];
@@ -88,6 +96,7 @@ export interface DevelopmentPanelData {
 
 export interface ProjectDevelopmentData {
   projectId: number;
+  issuePrefix: string;
   repoFullName: string | null;
   connected: boolean;
   openPullRequests: GitHubPullRequest[];
