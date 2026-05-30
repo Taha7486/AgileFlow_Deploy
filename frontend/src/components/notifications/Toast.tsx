@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Snackbar, Alert, type AlertColor } from '@mui/material';
 
 type ToastContextValue = {
@@ -17,6 +17,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setSeverity(sev);
     setOpen(true);
   }, []);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ message?: string; severity?: AlertColor }>).detail;
+      if (detail?.message) {
+        showToast(detail.message, detail.severity ?? 'info');
+      }
+    };
+
+    window.addEventListener('agileflow:toast', handler);
+    return () => window.removeEventListener('agileflow:toast', handler);
+  }, [showToast]);
 
   return (
     <ToastContext.Provider value={{ showToast }}>

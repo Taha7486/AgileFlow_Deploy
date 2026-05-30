@@ -24,7 +24,7 @@ const mapMember = (member: ProjectMember): TeamMember => ({
   email: member.email,
   nom: member.lastName,
   prenom: member.firstName,
-  avatarUrl: null,
+  avatarUrl: member.avatarUrl ?? null,
   role: normalizeRole(member.projectRole ?? member.role, member.owner),
   status: 'ACTIVE',
   tasksCount: 0,

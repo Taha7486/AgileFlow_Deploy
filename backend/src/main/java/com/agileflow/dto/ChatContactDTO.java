@@ -6,5 +6,6 @@ public record ChatContactDTO(
         String firstName,
         String lastName,
         String role,
+        String avatarUrl,
         Long invitationId
 ) {}

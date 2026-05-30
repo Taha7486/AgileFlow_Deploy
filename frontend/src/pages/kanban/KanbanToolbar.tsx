@@ -26,6 +26,7 @@ import { useKanbanStore } from '../../store/kanbanStore';
 import { PRIORITE_CONFIG } from '../../types/kanban.types';
 import type { KanbanPriorite } from '../../types/kanban.types';
 import type { ProjectMember } from '../../types';
+import { resolvePresenceDisplay, usePresenceStore } from '../../store/presenceStore';
 
 interface Props {
   onSearch: (value: string) => void;
@@ -37,6 +38,7 @@ const KanbanToolbar = ({ onSearch }: Props) => {
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [filterAnchor, setFilterAnchor] = useState<HTMLElement | null>(null);
   const [groupAnchor, setGroupAnchor] = useState<HTMLElement | null>(null);
+  const getPresence = usePresenceStore((state) => state.getPresence);
 
   useEffect(() => {
     if (!activeProject?.id) {
@@ -64,16 +66,25 @@ const KanbanToolbar = ({ onSearch }: Props) => {
             InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }}
           />
           <AvatarGroup max={5} sx={{ '& .MuiAvatar-root': { width: 30, height: 30, fontSize: 12, cursor: 'pointer' } }}>
-            {members.map((member) => (
+            {members.map((member) => {
+              const online = resolvePresenceDisplay(getPresence(member.userId)) === 'LIVE';
+              const active = filters.assigneeId === member.userId;
+              return (
               <Tooltip key={member.userId} title={`${member.firstName} ${member.lastName}`}>
                 <Avatar
-                  onClick={() => setFilter('assigneeId', filters.assigneeId === member.userId ? null : member.userId)}
-                  sx={{ bgcolor: member.owner ? '#0C66E4' : '#6B778C', border: filters.assigneeId === member.userId ? '2px solid #0C66E4 !important' : undefined }}
+                  src={member.avatarUrl ?? undefined}
+                  onClick={() => setFilter('assigneeId', active ? null : member.userId)}
+                  sx={{
+                    bgcolor: member.owner ? '#0C66E4' : '#6B778C',
+                    border: online ? '2px solid #44b700 !important' : active ? '2px solid #0C66E4 !important' : undefined,
+                    boxShadow: active && online ? '0 0 0 2px #0C66E4' : undefined,
+                  }}
                 >
                   {`${member.firstName?.[0] ?? ''}${member.lastName?.[0] ?? ''}`.toUpperCase()}
                 </Avatar>
               </Tooltip>
-            ))}
+              );
+            })}
           </AvatarGroup>
           {assigneeName && <Chip label={assigneeName} onDelete={() => setFilter('assigneeId', null)} size="small" />}
           <Button variant="outlined" startIcon={<FilterList />} onClick={(event) => setFilterAnchor(event.currentTarget)}>Filtrer</Button>

@@ -29,10 +29,13 @@ import { Assessment, Download, Refresh } from '@mui/icons-material';
 import { exportAnalyticsPdf, fetchAnalytics } from '../../api/analyticsApi';
 import ActivityHeatmap from '../../components/analytics/ActivityHeatmap';
 import type { AnalyticsData, AnalyticsPeriod } from '../../types';
+import { useAuth } from '../../context/AuthContext';
+import { useActiveProjectStore } from '../../store/activeProjectStore';
 
 const PERIOD_LABELS: Record<AnalyticsPeriod, string> = {
-  WEEK: 'Semaine',
+  YEAR: 'Derniere annee',
   MONTH: 'Mois',
+  WEEK: 'Semaine',
 };
 
 const shortDate = (date: string) => date.slice(5);
@@ -64,7 +67,9 @@ const StatCard = ({
 );
 
 const AnalyticsDashboard = () => {
-  const [period, setPeriod] = useState<AnalyticsPeriod>('WEEK');
+  const { user } = useAuth();
+  const activeProject = useActiveProjectStore((state) => state.activeProject);
+  const [period, setPeriod] = useState<AnalyticsPeriod>('YEAR');
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -73,7 +78,8 @@ const AnalyticsDashboard = () => {
 
   const requestParams = useMemo(() => ({
     period,
-  }), [period]);
+    ...(user?.role !== 'ROLE_ADMIN' && activeProject?.id ? { projectId: activeProject.id } : {}),
+  }), [activeProject?.id, period, user?.role]);
 
   const loadAnalytics = useCallback(async () => {
     setLoading(true);
@@ -126,6 +132,7 @@ const AnalyticsDashboard = () => {
       <Typography variant="h5" fontWeight={800} sx={{ mb: 1 }}>Analytics Dashboard</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
         Vue consolidee des activites par periode, membre et date.
+        {user?.role !== 'ROLE_ADMIN' && activeProject ? ` Projet: ${activeProject.name}.` : ''}
       </Typography>
 
       <Paper elevation={0} sx={{ p: 2.5, mb: 3, borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>

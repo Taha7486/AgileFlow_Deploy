@@ -5,6 +5,7 @@ public record ProjectDTO(
         String name,
         String issuePrefix,
         String description,
+        String iconUrl,
         String startDate,
         String endDate,
         String status,

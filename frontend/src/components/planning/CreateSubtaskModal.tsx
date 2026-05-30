@@ -16,6 +16,7 @@ import {
   ToggleButtonGroup,
   ToggleButton,
   Autocomplete,
+  Avatar,
   Box,
   CircularProgress,
 } from '@mui/material';
@@ -194,6 +195,14 @@ const CreateSubtaskModal: React.FC<Props> = ({ open, onClose, parentTask, onCrea
               loading={loadingUsers}
               value={users.find(u => u.id === assigneeId) || null}
               onChange={(_, val) => setAssigneeId(val?.id || null)}
+              renderOption={(props, user) => (
+                <Box component="li" {...props} key={user.id}>
+                  <Avatar src={user.avatarUrl ?? undefined} sx={{ width: 28, height: 28, mr: 1, fontSize: 12 }}>
+                    {`${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase() || user.email[0]?.toUpperCase()}
+                  </Avatar>
+                  {`${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email}
+                </Box>
+              )}
               renderInput={(params) => (
                 <TextField
                   {...params}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Chip,
@@ -8,6 +9,7 @@ import {
   IconButton,
   InputAdornment,
   List,
+  ListItemAvatar,
   ListItem,
   ListItemText,
   Stack,
@@ -192,15 +194,27 @@ const ContactInviteSection = ({ onContactsChanged }: ContactInviteSectionProps) 
           {searchResults.map((user) => (
             <ListItem
               key={user.userId}
-              secondaryAction={renderSearchAction(user)}
-              sx={{ pr: 14 }}
+              sx={{
+                alignItems: 'center',
+                gap: 1,
+                pr: 1,
+              }}
             >
+              <ListItemAvatar>
+                <Avatar src={user.avatarUrl ?? undefined} sx={{ width: 32, height: 32 }}>
+                  {user.firstName?.[0] ?? user.email[0]}
+                </Avatar>
+              </ListItemAvatar>
               <ListItemText
                 primary={`${user.firstName} ${user.lastName}`}
                 secondary={user.email}
-                primaryTypographyProps={{ fontSize: 14, fontWeight: 600 }}
-                secondaryTypographyProps={{ fontSize: 12 }}
+                sx={{ minWidth: 0, mr: 1 }}
+                primaryTypographyProps={{ fontSize: 14, fontWeight: 600, noWrap: true }}
+                secondaryTypographyProps={{ fontSize: 12, noWrap: true }}
               />
+              <Box sx={{ flexShrink: 0 }}>
+                {renderSearchAction(user)}
+              </Box>
             </ListItem>
           ))}
         </List>
@@ -246,6 +260,11 @@ const ContactInviteSection = ({ onContactsChanged }: ContactInviteSectionProps) 
                 </Stack>
               }
             >
+              <ListItemAvatar>
+                <Avatar src={inv.requesterAvatarUrl ?? undefined} sx={{ width: 32, height: 32 }}>
+                  {inv.requesterFirstName?.[0] ?? inv.requesterEmail[0]}
+                </Avatar>
+              </ListItemAvatar>
               <ListItemText
                 primary={`${inv.requesterFirstName} ${inv.requesterLastName}`}
                 secondary="Souhaite discuter avec vous"

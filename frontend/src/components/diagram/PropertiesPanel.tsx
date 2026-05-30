@@ -2,6 +2,7 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
+  Avatar,
   Box,
   Checkbox,
   FormControlLabel,
@@ -266,7 +267,9 @@ export const PropertiesPanel = ({ selectedNode, selectedEdge, collaborators, onN
           {collaborators.length === 0 && <Typography variant="caption" color="text.secondary">Aucun autre utilisateur actif.</Typography>}
           {collaborators.map((user) => (
             <Stack key={user.userId} direction="row" alignItems="center" spacing={1}>
-              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: user.isActive ? user.color : 'grey.400' }} />
+              <Avatar src={user.avatarUrl ?? undefined} sx={{ width: 28, height: 28, fontSize: 12, bgcolor: user.color, border: user.isActive ? '2px solid #44b700' : undefined }}>
+                {user.username[0]}
+              </Avatar>
               <Box>
                 <Typography variant="body2" fontWeight={700}>{user.username}</Typography>
                 <Typography variant="caption" color="text.secondary">{user.permission ?? 'EDITOR'}</Typography>

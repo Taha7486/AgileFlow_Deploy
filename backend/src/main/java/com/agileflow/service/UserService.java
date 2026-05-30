@@ -17,7 +17,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -40,14 +42,37 @@ public class UserService {
                 u.getRole().name(),
                 u.getDateCreation() != null ? u.getDateCreation().toString() : null,
                 u.isActif(),
-                u.getDateDerniereConnexion() != null ? u.getDateDerniereConnexion().toString() : null
+                u.getDateDerniereConnexion() != null ? u.getDateDerniereConnexion().toString() : null,
+                u.getAvatarUrl()
         );
     }
 
     @Transactional(readOnly = true)
     public List<UserDTO> listUsers(String q) {
+        return listUsers(q, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserDTO> listUsers(String q, Long projectId) {
         String query = (q == null || q.isBlank()) ? null : q.trim();
-        return userRepository.search(query).stream().map(UserService::toUserDTO).toList();
+        if (projectId == null) {
+            return userRepository.search(query).stream().map(UserService::toUserDTO).toList();
+        }
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Projet introuvable"));
+        User actor = currentUser();
+        projectAccessService.assertProjectAccess(actor, project);
+
+        Set<Long> userIds = new HashSet<>(projectMemberRepository.findUserIdsByProjectId(projectId));
+        if (project.getManager() != null) {
+            userIds.add(project.getManager().getId());
+        }
+
+        return userRepository.search(query).stream()
+                .filter(user -> userIds.contains(user.getId()))
+                .map(UserService::toUserDTO)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -86,6 +111,7 @@ public class UserService {
         User actor = currentUser();
         actor.setPrenom(request.firstName().trim());
         actor.setNom(request.lastName().trim());
+        actor.setAvatarUrl(normalizeImageValue(request.avatarUrl()));
         userRepository.save(actor);
         return toUserDTO(actor);
     }
@@ -106,6 +132,7 @@ public class UserService {
                 u.getDateCreation() != null ? u.getDateCreation().toString() : null,
                 u.isActif(),
                 u.getDateDerniereConnexion() != null ? u.getDateDerniereConnexion().toString() : null,
+                u.getAvatarUrl(),
                 teams
         );
     }
@@ -164,5 +191,9 @@ public class UserService {
             return User.Role.ROLE_DEVELOPER;
         }
         return role;
+    }
+
+    private String normalizeImageValue(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }

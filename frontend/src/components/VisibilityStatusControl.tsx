@@ -10,7 +10,6 @@ import {
 } from '@mui/material';
 import { FiberManualRecord } from '@mui/icons-material';
 import { WebSocketState } from '../hooks/useWebSocket';
-import { useWebSocket } from '../hooks/useWebSocket';
 import { useAuthStore } from '../store/authStore';
 import {
   loadSavedVisibility,
@@ -32,11 +31,11 @@ const STATUS_OPTIONS: {
 
 interface VisibilityStatusControlProps {
   connectionState: WebSocketState;
+  publish: (destination: string, body: unknown, retry?: boolean) => void;
 }
 
-const VisibilityStatusControl = ({ connectionState }: VisibilityStatusControlProps) => {
+const VisibilityStatusControl = ({ connectionState, publish }: VisibilityStatusControlProps) => {
   const { user } = useAuthStore();
-  const { publish } = useWebSocket();
   const myVisibilityStatus = usePresenceStore((s) => s.myVisibilityStatus);
   const setMyVisibilityStatus = usePresenceStore((s) => s.setMyVisibilityStatus);
   const setPresenceSnapshot = usePresenceStore((s) => s.setPresenceSnapshot);
@@ -63,7 +62,8 @@ const VisibilityStatusControl = ({ connectionState }: VisibilityStatusControlPro
     setMyVisibilityStatus(status);
     publishPresence(status, true);
 
-    fetchPresenceSnapshot()
+    updateMyVisibility(status)
+      .then(() => fetchPresenceSnapshot())
       .then(setPresenceSnapshot)
       .catch(console.error);
   }, [user?.id, isConnected]);

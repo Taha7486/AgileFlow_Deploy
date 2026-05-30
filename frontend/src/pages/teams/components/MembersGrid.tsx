@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography';
 import type { MouseEvent } from 'react';
 import type { TeamMember } from '../../../types/team';
 import { formatRelativeDate, getAvatarColor, getInitials, RoleBadge } from './MembersTable';
+import { resolvePresenceDisplay, usePresenceStore } from '../../../store/presenceStore';
 
 interface Props {
   members: TeamMember[];
@@ -19,6 +20,8 @@ interface Props {
 }
 
 const MembersGrid = ({ members, loading, isOwner, onMenuOpen }: Props) => {
+  const getPresence = usePresenceStore((state) => state.getPresence);
+
   if (loading) {
     return (
       <Grid container spacing={2}>
@@ -38,13 +41,13 @@ const MembersGrid = ({ members, loading, isOwner, onMenuOpen }: Props) => {
           <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid #EBECF0', p: 2.5 }}>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, pb: 2 }}>
               {member.avatarUrl ? (
-                <Avatar src={member.avatarUrl} sx={{ width: 56, height: 56 }} />
+                <Avatar src={member.avatarUrl} sx={{ width: 56, height: 56, border: member.userId != null && resolvePresenceDisplay(getPresence(member.userId)) === 'LIVE' ? '2px solid #44b700' : undefined }} />
               ) : member.status === 'INVITED' ? (
-                <Avatar sx={{ width: 56, height: 56, bgcolor: '#F4F5F7' }}>
+                <Avatar sx={{ width: 56, height: 56, bgcolor: '#F4F5F7', border: member.userId != null && resolvePresenceDisplay(getPresence(member.userId)) === 'LIVE' ? '2px solid #44b700' : undefined }}>
                   <MailOutlineIcon sx={{ color: '#6B778C' }} />
                 </Avatar>
               ) : (
-                <Avatar sx={{ width: 56, height: 56, bgcolor: getAvatarColor(member.role), fontSize: 20 }}>
+                <Avatar sx={{ width: 56, height: 56, bgcolor: getAvatarColor(member.role), fontSize: 20, border: member.userId != null && resolvePresenceDisplay(getPresence(member.userId)) === 'LIVE' ? '2px solid #44b700' : undefined }}>
                   {getInitials(member)}
                 </Avatar>
               )}

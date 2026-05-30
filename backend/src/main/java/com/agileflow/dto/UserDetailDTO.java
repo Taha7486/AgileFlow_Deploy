@@ -11,5 +11,6 @@ public record UserDetailDTO(
         String createdAt,
         Boolean active,
         String lastLogin,
+        String avatarUrl,
         List<TeamMembershipDTO> teams
 ) {}

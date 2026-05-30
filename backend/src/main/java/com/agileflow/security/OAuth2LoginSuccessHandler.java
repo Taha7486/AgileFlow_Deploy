@@ -51,6 +51,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                 .queryParam("role", auth.role())
                 .queryParam("prenom", auth.prenom())
                 .queryParam("nom", auth.nom())
+                .queryParam("avatarUrl", auth.avatarUrl())
                 .build()
                 .encode()
                 .toUriString();

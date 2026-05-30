@@ -9,6 +9,7 @@ export interface TimelineUser {
   email: string;
   initiales: string;
   avatarColor: string;
+  avatarUrl?: string | null;
 }
 
 export interface TimelineSprint { id: number; nom: string; statut: string; }

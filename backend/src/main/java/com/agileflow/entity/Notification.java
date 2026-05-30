@@ -15,6 +15,7 @@ public class Notification {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String message;
+    private String targetUrl;
     @Builder.Default
     private boolean lu = false;
     @Builder.Default

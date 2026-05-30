@@ -1,8 +1,7 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
+import PanelLayout from '../components/layout/PanelLayout';
 import { useAuth } from '../context/AuthContext';
 import { useActiveProject } from '../hooks/useActiveProject';
 import LoginPage from '../pages/auth/LoginPage';
@@ -10,7 +9,6 @@ import OAuthRedirectPage from '../pages/auth/OAuthRedirectPage';
 import RegisterPage from '../pages/auth/RegisterPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import ProjectInvitePage from '../pages/auth/ProjectInvitePage';
-import DashboardPage from '../pages/DashboardPage';
 import ProjectsListPage from '../pages/projects/ProjectsListPage';
 import TeamsPage from '../pages/teams/TeamsPage';
 import TeamDetailsPage from '../pages/teams/TeamDetailsPage';
@@ -23,8 +21,10 @@ import ProfileAccountTab from '../pages/profile/ProfileAccountTab';
 import ProfileNotificationsTab from '../pages/profile/ProfileNotificationsTab';
 import ProfilePresenceTab from '../pages/profile/ProfilePresenceTab';
 import AdminPage from '../pages/admin/AdminPage';
+import AdminProjectsPage from '../pages/admin/AdminProjectsPage';
 import ActivityLogsPage from '../pages/admin/ActivityLogsPage';
 import NotifCenter from '../pages/notifications/NotifCenter';
+import LoadingPage from '../pages/LoadingPage';
 
 const AnalyticsDashboard = lazy(() => import('../pages/analytics/AnalyticsDashboard'));
 const StatsPage = lazy(() => import('../pages/stats/StatsPage'));
@@ -34,15 +34,10 @@ const PlanningPage = lazy(() => import('../pages/planning/PlanningPage'));
 const TimelinePage = lazy(() => import('../pages/timeline/TimelinePage'));
 const ProjectSummaryPage = lazy(() => import('../pages/projects/summary/ProjectSummaryPage'));
 const DevelopmentPage = lazy(() => import('../pages/development/DevelopmentPage'));
+const LandingPage = lazy(() => import('../pages/LandingPage'));
 
 const LazyPage = ({ children }: { children: ReactNode }) => (
-  <Suspense
-    fallback={
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 240 }}>
-        <CircularProgress size={28} />
-      </Box>
-    }
-  >
+  <Suspense fallback={<LoadingPage compact />}>
     {children}
   </Suspense>
 );
@@ -50,8 +45,14 @@ const LazyPage = ({ children }: { children: ReactNode }) => (
 const ProtectedRoute = ({ allowedRoles }: { allowedRoles?: string[] }) => {
   const { token, user } = useAuth();
   if (!token || !user) return <Navigate to="/login" replace />;
-  if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to="/" replace />;
+  if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to="/dashboard" replace />;
   return <AppLayout />;
+};
+
+const ProtectedPanelRoute = () => {
+  const { token, user } = useAuth();
+  if (!token || !user) return <Navigate to="/login" replace />;
+  return <PanelLayout />;
 };
 
 const AdminRoute = ({ children }: { children: ReactNode }) => {
@@ -65,18 +66,14 @@ const ProjectHomeRedirect = () => {
   const { activeProject, isLoading } = useActiveProject();
 
   if (isLoading) {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 240 }}>
-        <CircularProgress size={28} />
-      </Box>
-    );
+    return <LoadingPage compact message="Chargement du projet actif..." />;
   }
 
   if (activeProject) {
     return <Navigate to={`/projects/${activeProject.id}/summary`} replace />;
   }
 
-  return <DashboardPage />;
+  return <Navigate to="/" replace />;
 };
 
 const UnauthorizedPage = () => (
@@ -88,6 +85,7 @@ const UnauthorizedPage = () => (
 const AppRouter = () => (
   <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
     <Routes>
+      <Route index element={<LazyPage><LandingPage /></LazyPage>} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/oauth2/redirect" element={<OAuthRedirectPage />} />
       <Route path="/register" element={<RegisterPage />} />
@@ -95,8 +93,17 @@ const AppRouter = () => (
       <Route path="/project-invite" element={<ProjectInvitePage />} />
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
+      <Route element={<ProtectedPanelRoute />}>
+        <Route path="/profile" element={<ProfileLayout />}>
+          <Route index element={<Navigate to="/profile/account" replace />} />
+          <Route path="account" element={<ProfileAccountTab />} />
+          <Route path="notifications" element={<ProfileNotificationsTab />} />
+          <Route path="presence" element={<ProfilePresenceTab />} />
+        </Route>
+        <Route path="/settings" element={<Navigate to="/profile/notifications" replace />} />
+      </Route>
+
       <Route element={<ProtectedRoute />}>
-        <Route index element={<ProjectHomeRedirect />} />
         <Route path="/dashboard" element={<ProjectHomeRedirect />} />
         <Route path="/analytics" element={<LazyPage><AnalyticsDashboard /></LazyPage>} />
         <Route path="/stats" element={<LazyPage><StatsPage /></LazyPage>} />
@@ -120,14 +127,8 @@ const AppRouter = () => (
         <Route path="/timeline" element={<LazyPage><TimelinePage /></LazyPage>} />
         <Route path="/backlog" element={<BacklogPage />} />
         <Route path="/kanban" element={<KanbanBoard />} />
-        <Route path="/profile" element={<ProfileLayout />}>
-          <Route index element={<Navigate to="/profile/account" replace />} />
-          <Route path="account" element={<ProfileAccountTab />} />
-          <Route path="notifications" element={<ProfileNotificationsTab />} />
-          <Route path="presence" element={<ProfilePresenceTab />} />
-        </Route>
-        <Route path="/settings" element={<Navigate to="/profile/notifications" replace />} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/admin/projects" element={<AdminProjectsPage />} />
         <Route path="/activity-logs" element={<ActivityLogsPage />} />
         <Route path="/notifications" element={<NotifCenter />} />
       </Route>

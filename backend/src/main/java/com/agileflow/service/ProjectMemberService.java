@@ -276,7 +276,8 @@ public class ProjectMemberService {
         String suffix = mentionEmail ? " Consultez votre email ou acceptez dans l'application." : " Acceptez ou refusez dans l'application.";
         notificationService.createAndBroadcast(
                 recipient,
-                inviter.getPrenom() + " " + inviter.getNom() + " vous invite au projet \"" + project.getNom() + "\"." + suffix
+                inviter.getPrenom() + " " + inviter.getNom() + " vous invite au projet \"" + project.getNom() + "\"." + suffix,
+                "/projects/" + project.getId() + "/summary"
         );
     }
 
@@ -318,7 +319,8 @@ public class ProjectMemberService {
         User inviter = invitation.getInvitedBy();
         notificationService.createAndBroadcast(
                 inviter,
-                actor.getPrenom() + " " + actor.getNom() + " a accepte votre invitation au projet " + project.getNom()
+                actor.getPrenom() + " " + actor.getNom() + " a accepte votre invitation au projet " + project.getNom(),
+                "/projects/" + project.getId() + "/summary"
         );
 
         return toMemberDto(actor, false, LocalDateTime.now());
@@ -389,7 +391,8 @@ public class ProjectMemberService {
                 user.getRole().name(),
                 owner ? "OWNER" : (projectRole != null ? projectRole.name() : ProjectMember.ProjectRole.DEVELOPER.name()),
                 owner,
-                joinedAt != null ? joinedAt.toString() : null
+                joinedAt != null ? joinedAt.toString() : null,
+                user.getAvatarUrl()
         );
     }
 

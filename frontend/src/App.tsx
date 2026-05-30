@@ -19,7 +19,7 @@ const App = () => {
       timeoutId = window.setTimeout(() => {
         // Déconnexion et redirection forcée au bout des 15 mins
         logout();
-        window.location.href = '/login';
+        window.location.href = '/';
       }, INACTIVITY_LIMIT);
     };
 

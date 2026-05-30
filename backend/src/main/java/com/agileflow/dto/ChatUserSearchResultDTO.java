@@ -6,5 +6,6 @@ public record ChatUserSearchResultDTO(
         String firstName,
         String lastName,
         String role,
+        String avatarUrl,
         String relationshipStatus
 ) {}

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Avatar,
   Box,
   Chip,
   CircularProgress,
   IconButton,
+  Snackbar,
   Stack,
   TextField,
   Typography,
@@ -94,6 +96,8 @@ const EditorInner = () => {
   const [zoom, setZoom] = useState(100);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const nodesRef = useRef<Node[]>([]);
   const edgesRef = useRef<Edge[]>([]);
   const scheduleSaveRef = useRef<(nextNodes: Node[], nextEdges: Edge[]) => void>(() => undefined);
@@ -206,8 +210,9 @@ const EditorInner = () => {
     load();
   }, [load]);
 
-  const saveNow = useCallback(async (nextNodes = nodes, nextEdges = edges) => {
+  const saveNow = useCallback(async (nextNodes = nodes, nextEdges = edges, showMessage = false) => {
     if (!diagram) return;
+    setSaving(true);
     const canvasData = buildCanvasData(diagram.title ?? diagram.titre, diagram.type, nextNodes, nextEdges);
     const payload: UpdateDiagramPayload = {
       title: diagram.title ?? diagram.titre,
@@ -223,8 +228,15 @@ const EditorInner = () => {
       nodes: nextNodes.map(toNodeDTO),
       edges: nextEdges.map(toEdgeDTO),
     };
-    const updated = await updateDiagramContent(diagram.id, payload);
-    setDiagram(updated);
+    try {
+      const updated = await updateDiagramContent(diagram.id, payload);
+      setDiagram(updated);
+      if (showMessage) setSaveMessage('Diagramme enregistre.');
+    } catch {
+      setSaveMessage("Enregistrement impossible.");
+    } finally {
+      setSaving(false);
+    }
   }, [diagram, edges, nodes]);
 
   const scheduleSave = useCallback((nextNodes: Node[], nextEdges: Edge[]) => {
@@ -236,6 +248,14 @@ const EditorInner = () => {
   useEffect(() => {
     scheduleSaveRef.current = scheduleSave;
   }, [scheduleSave]);
+
+  const handleManualSave = useCallback(() => {
+    if (saveTimer.current) {
+      window.clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    void saveNow(nodesRef.current, edgesRef.current, true);
+  }, [saveNow]);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     setNodes((current) => {
@@ -368,6 +388,16 @@ const EditorInner = () => {
     sendCursor(position.x, position.y);
   }, [reactFlow, sendCursor]);
 
+  const sendNodeCursor = useCallback((node: Node) => {
+    if (cursorTimer.current) return;
+    cursorTimer.current = window.setTimeout(() => {
+      cursorTimer.current = null;
+    }, 80);
+    const width = typeof node.width === 'number' ? node.width : Number(node.data?.width ?? 0);
+    const height = typeof node.height === 'number' ? node.height : Number(node.data?.height ?? 0);
+    sendCursor(node.position.x + width / 2, node.position.y + height / 2);
+  }, [sendCursor]);
+
   const selected = useMemo(() => ({
     node: nodes.find((node) => node.selected) ?? selectedNode,
     edge: edges.find((edge) => edge.selected) ?? selectedEdge,
@@ -467,7 +497,14 @@ const EditorInner = () => {
           <FiberManualRecord sx={{ fontSize: 12, color: connectionState === 'CONNECTED' ? 'success.main' : 'warning.main' }} />
           <Typography variant="body2" color="text.secondary">{connectionState === 'CONNECTED' ? 'Temps reel actif' : 'Connexion...'}</Typography>
           {activeUsers.slice(0, 4).map((collaborator) => (
-            <Chip key={collaborator.userId} size="small" label={collaborator.username} sx={{ borderColor: collaborator.color }} variant="outlined" />
+            <Chip
+              key={collaborator.userId}
+              size="small"
+              label={collaborator.username}
+              avatar={<Avatar src={collaborator.avatarUrl ?? undefined}>{collaborator.username[0]}</Avatar>}
+              sx={{ borderColor: collaborator.isActive ? '#44b700' : collaborator.color, '& .MuiChip-avatar': { border: collaborator.isActive ? '2px solid #44b700' : undefined } }}
+              variant="outlined"
+            />
           ))}
         </Stack>
       </Box>
@@ -488,6 +525,8 @@ const EditorInner = () => {
         onToggleGrid={() => setShowGrid((value) => !value)}
         onToggleLibrary={() => setShowLibrary((value) => !value)}
         onAddText={createTextNode}
+        onSave={handleManualSave}
+        saving={saving}
         onAutoLayout={() => {
           const lockedNodes = new Map(nodes.filter((node) => node.data?.locked).map((node) => [node.id, node]));
           const next = attachNodeHandlers(applyAutoLayout(nodes, edges).map((node) => lockedNodes.get(node.id) ?? node), handleNodePatch);
@@ -515,9 +554,16 @@ const EditorInner = () => {
               const nextEdge = selectedEdges[0] ?? null;
               if (selectedNode && selectedNode.id !== nextNode?.id) unlockElement(selectedNode.id);
               if (nextNode) lockElement(nextNode.id);
+              if (nextNode) sendNodeCursor(nextNode);
               setSelectedNode(nextNode);
               setSelectedEdge(nextEdge);
             }}
+            onNodeDragStart={(_, node) => {
+              lockElement(node.id);
+              sendNodeCursor(node);
+            }}
+            onNodeDrag={(_, node) => sendNodeCursor(node)}
+            onNodeDragStop={(_, node) => sendNodeCursor(node)}
             connectionMode={ConnectionMode.Loose}
             panOnDrag={selectedTool === 'pan'}
             nodesDraggable={selectedTool !== 'pan'}
@@ -543,6 +589,12 @@ const EditorInner = () => {
           onEdgeChange={handleEdgePatch}
         />
       </Box>
+      <Snackbar
+        open={Boolean(saveMessage)}
+        autoHideDuration={2500}
+        onClose={() => setSaveMessage(null)}
+        message={saveMessage}
+      />
     </Box>
   );
 };

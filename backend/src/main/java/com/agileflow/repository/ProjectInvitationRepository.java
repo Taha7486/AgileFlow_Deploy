@@ -11,6 +11,8 @@ import java.util.Optional;
 
 public interface ProjectInvitationRepository extends JpaRepository<ProjectInvitation, Long> {
 
+    void deleteByProject_Id(Long projectId);
+
     Optional<ProjectInvitation> findByToken(String token);
 
     Optional<ProjectInvitation> findByTokenAndStatusAndExpiresAtAfter(

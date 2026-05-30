@@ -28,6 +28,7 @@ administrateur.
 - Zustand
 - Axios avec intercepteur JWT
 - React Router v6
+- lucide-react
 - Recharts
 - dnd-kit
 - React Flow / Mermaid
@@ -166,6 +167,29 @@ npm run dev
 
 ## Navigation actuelle
 
+La route publique `/` affiche la landing page AgileFlow. Les boutons de la
+landing redirigent vers `/login` et `/register`. Apres connexion ou inscription,
+un utilisateur sans projet est renvoye vers `/` ; s'il est deja authentifie, la
+landing affiche un bouton `Creer un projet` fonctionnel dans sa navbar. Le
+redirect vers le resume du projet actif se fait via `/dashboard`.
+Le bouton `Ouvrir AgileFlow` n'est affiche sur la landing que si l'utilisateur
+connecte possede deja au moins un projet. Les CTA `Creer un projet
+gratuitement`, `Commencer gratuitement` et `Connecter GitHub` ouvrent la
+creation de projet quand l'utilisateur est deja connecte.
+
+Les pages `/login`, `/register` et le loading global reprennent le visuel de la
+landing : panneau sombre de marque, carte formulaire claire, OAuth Google/GitHub
+et icone principale `frontend/public/agileflow-icon.png`.
+
+Dans le header applicatif, si aucun projet n'est actif, le selecteur ne montre
+plus de faux nom ni d'avatar `Projet` : il affiche directement le bouton
+`Creer un projet`.
+
+La creation de projet permet de renseigner le nom, la cle de taches, la
+description, le type visuel, les dates, le statut, l'equipe, des emails a
+inviter et une connexion GitHub optionnelle. Les invitations et la connexion
+GitHub sont executees automatiquement apres creation du projet.
+
 Le menu non-admin est centre sur le projet actif selectionne dans le header :
 
 - Resume
@@ -201,6 +225,9 @@ Le selecteur de projet dans le header permet :
 ### Projets et invitations
 
 - Creation, modification et suppression de projet.
+- La suppression d'un projet supprime aussi ses donnees liees : taches,
+  commentaires, diagrammes, sprints, epics, backlog, invitations, membres,
+  chat projet et integration GitHub.
 - Chaque projet possede un prefixe de taches configurable (`KAN` par defaut),
   utilise dans les cartes, details, branches, PRs et commits GitHub.
 - Le createur devient proprietaire (`OWNER`) du projet.
@@ -431,23 +458,59 @@ Topics importants :
 /topic/chat/private/{userId}
 ```
 
-## Donnees de test
+## Donnees de demo
 
-Si le script de seed est utilise, verifier son contenu avant execution car il
-peut supprimer les donnees existantes.
+Le profil Spring `seed` reconstruit une base de demo complete. Il supprime les
+donnees existantes puis cree des utilisateurs, projets, membres, invitations,
+taches, epics, sous-taches, commentaires, diagrammes, notifications, messages
+chat, presence et journaux d'activite.
 
 ```powershell
 cd backend/src/main/resources
 ./seed-data.bat
 ```
 
-Comptes historiques possibles selon l'etat du seed :
+Compte principal pour enregistrer une demo utilisateur :
 
 ```text
-admin@agileflow.com / Password@2024
-alice@agileflow.com / Password@2024
-bob@agileflow.com / Password@2024
+owner@agileflow.com / Password@2024
 ```
+
+Autres comptes utiles :
+
+```text
+admin@agileflow.com / Password@2024       admin plateforme
+pm@agileflow.com / Password@2024          admin projet
+frontend@agileflow.com / Password@2024    developpeur frontend
+backend@agileflow.com / Password@2024     developpeur backend
+viewer@agileflow.com / Password@2024      lecture seule projet
+invite@agileflow.com / Password@2024      invitation projet en attente
+```
+
+Projets crees :
+
+- `AgileFlow Demo` (`KAN`) : projet principal pour la video.
+- `Mobile Banking` (`MBK`) : projet secondaire pour les filtres admin.
+- `Legacy CRM` (`CRM`) : projet archive, visible cote admin.
+
+### Storyboard video suggere
+
+1. Landing page : hero AgileFlow, profil connecte, bouton projet.
+2. Connexion avec `owner@agileflow.com`.
+3. Resume projet `AgileFlow Demo` : KPIs, activite recente, notifications.
+4. Planification : liste de taches, epics, sous-taches, membres, export Excel.
+5. Kanban : colonnes TODO / IN_PROGRESS / REVIEW / DONE et detail d'une tache.
+6. Chronologie : epics et taches planifiees dans le Gantt.
+7. DiagramFlow : ouvrir `Sequence collaboration DiagramFlow`, montrer curseurs
+   collaboratifs et bouton enregistrer.
+8. Developpement : page GitHub du projet, branches/commits/PRs si integration
+   connectee pendant la demo.
+9. Equipes : roles projet, invitation en attente, presence/avatars.
+10. Chat : canal projet et message prive, avatars et bouton actualiser.
+11. Analytics / Reports admin : se connecter avec `admin@agileflow.com`,
+    verifier KPIs, heatmap et export PDF.
+12. Admin Projects : filtres, statistiques, archive/desarchive.
+13. Activity Logs : journaux complets utilises par les analytics.
 
 ## Verifications rapides
 

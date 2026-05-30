@@ -3,11 +3,13 @@ import type { AnalyticsData, AnalyticsPeriod } from '../types';
 
 export interface AnalyticsParams {
   period: AnalyticsPeriod;
+  projectId?: number;
   sprintId?: number;
 }
 
 const toQuery = (params: AnalyticsParams) => ({
   period: params.period,
+  ...(params.projectId ? { projectId: params.projectId } : {}),
   ...(params.sprintId ? { sprintId: params.sprintId } : {}),
 });
 

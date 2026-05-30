@@ -16,6 +16,7 @@ import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import type { MouseEvent } from 'react';
 import type { MemberRole, MemberStatus, TeamMember } from '../../../types/team';
+import { resolvePresenceDisplay, usePresenceStore } from '../../../store/presenceStore';
 
 interface Props {
   members: TeamMember[];
@@ -88,7 +89,17 @@ export const StatusChip = ({ status }: { status: MemberStatus }) => {
   return <Chip size="small" label={config[status].label} sx={{ bgcolor: config[status].bg, color: config[status].color }} />;
 };
 
-const MembersTable = ({ members, loading, isOwner, onMenuOpen, onResendInvitation }: Props) => (
+const MembersTable = ({ members, loading, isOwner, onMenuOpen, onResendInvitation }: Props) => {
+  const getPresence = usePresenceStore((state) => state.getPresence);
+
+  const avatarSx = (member: TeamMember, size: number, fontSize?: number) => ({
+    width: size,
+    height: size,
+    fontSize,
+    border: member.userId != null && resolvePresenceDisplay(getPresence(member.userId)) === 'LIVE' ? '2px solid #44b700' : undefined,
+  });
+
+  return (
   <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #DFE1E6', borderRadius: 2 }}>
     <Table>
       <TableHead sx={{ bgcolor: '#F4F5F7' }}>
@@ -116,13 +127,13 @@ const MembersTable = ({ members, loading, isOwner, onMenuOpen, onResendInvitatio
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                     {member.avatarUrl ? (
-                      <Avatar src={member.avatarUrl} sx={{ width: 36, height: 36 }} />
+                      <Avatar src={member.avatarUrl} sx={avatarSx(member, 36)} />
                     ) : member.status === 'INVITED' ? (
-                      <Avatar sx={{ width: 36, height: 36, bgcolor: '#F4F5F7' }}>
+                      <Avatar sx={{ ...avatarSx(member, 36), bgcolor: '#F4F5F7' }}>
                         <MailOutlineIcon sx={{ color: '#6B778C', fontSize: 18 }} />
                       </Avatar>
                     ) : (
-                      <Avatar sx={{ width: 36, height: 36, bgcolor: getAvatarColor(member.role), fontSize: 13 }}>
+                      <Avatar sx={{ ...avatarSx(member, 36, 13), bgcolor: getAvatarColor(member.role) }}>
                         {getInitials(member)}
                       </Avatar>
                     )}
@@ -168,6 +179,7 @@ const MembersTable = ({ members, loading, isOwner, onMenuOpen, onResendInvitatio
       </TableBody>
     </Table>
   </TableContainer>
-);
+  );
+};
 
 export default MembersTable;

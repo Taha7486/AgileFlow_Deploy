@@ -14,6 +14,7 @@ import {
   GridOn,
   PanTool,
   Redo,
+  Save,
   TextFields,
   Undo,
   ViewSidebar,
@@ -38,6 +39,8 @@ interface DiagramToolbarProps {
   onToggleLibrary: () => void;
   onAddText: () => void;
   onAutoLayout: () => void;
+  onSave: () => void;
+  saving?: boolean;
   onExportPNG: () => void;
   onExportSVG: () => void;
 }
@@ -59,6 +62,8 @@ export const DiagramToolbar = ({
   onToggleLibrary,
   onAddText,
   onAutoLayout,
+  onSave,
+  saving = false,
   onExportPNG,
   onExportSVG,
 }: DiagramToolbarProps) => {
@@ -84,6 +89,10 @@ export const DiagramToolbar = ({
         <Divider orientation="vertical" flexItem />
         <Button variant={showGrid ? 'contained' : 'outlined'} size="small" startIcon={<GridOn />} onClick={onToggleGrid}>Grille</Button>
         <Button variant="outlined" size="small" onClick={onAutoLayout}>Auto layout</Button>
+        <Divider orientation="vertical" flexItem />
+        <Button variant="contained" size="small" startIcon={<Save />} onClick={onSave} disabled={saving}>
+          {saving ? 'Enregistrement...' : 'Enregistrer'}
+        </Button>
         <Divider orientation="vertical" flexItem />
         <Button startIcon={<Download />} onClick={onExportPNG}>PNG</Button>
         <Button onClick={onExportSVG}>SVG</Button>

@@ -21,6 +21,10 @@ import com.agileflow.entity.UserStory;
 import com.agileflow.exception.ForbiddenOperationException;
 import com.agileflow.exception.ResourceNotFoundException;
 import com.agileflow.repository.CommentRepository;
+import com.agileflow.repository.ActivityLogRepository;
+import com.agileflow.repository.CommentMentionRepository;
+import com.agileflow.repository.DiagramRepository;
+import com.agileflow.repository.GitHubTaskBranchRepository;
 import com.agileflow.repository.ProjectMemberRepository;
 import com.agileflow.repository.SavedViewRepository;
 import com.agileflow.repository.TaskRepository;
@@ -29,11 +33,32 @@ import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.ClientAnchor;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.util.IOUtils;
+import org.apache.poi.xssf.usermodel.XSSFClientAnchor;
+import org.apache.poi.xssf.usermodel.XSSFDrawing;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -63,6 +88,10 @@ public class PlanningService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final CommentRepository commentRepository;
+    private final CommentMentionRepository commentMentionRepository;
+    private final ActivityLogRepository activityLogRepository;
+    private final DiagramRepository diagramRepository;
+    private final GitHubTaskBranchRepository gitHubTaskBranchRepository;
     private final SavedViewRepository savedViewRepository;
     private final ProjectAccessService projectAccessService;
     private final ProjectMemberRepository projectMemberRepository;
@@ -168,6 +197,7 @@ public class PlanningService {
                 assertCanEditField(actor, task, "bulk");
                 applyBulkAction(task, request);
                 if ("DELETE".equalsIgnoreCase(request.action())) {
+                    cleanupTaskDependencies(task);
                     taskRepository.delete(task);
                 } else {
                     taskRepository.save(task);
@@ -179,6 +209,32 @@ public class PlanningService {
         }
 
         return new BulkActionResponse(success, request.taskIds().size() - success, errors);
+    }
+
+    private void cleanupTaskDependencies(Task task) {
+        List<Long> taskIds = collectTaskIds(task);
+        if (taskIds.isEmpty()) {
+            return;
+        }
+        diagramRepository.detachTasks(taskIds);
+        commentMentionRepository.deleteByCommentTaskIds(taskIds);
+        commentRepository.deleteByTask_IdIn(taskIds);
+        gitHubTaskBranchRepository.deleteByTask_IdIn(taskIds);
+        activityLogRepository.deleteByTask_IdIn(taskIds);
+    }
+
+    private List<Long> collectTaskIds(Task task) {
+        List<Long> ids = new ArrayList<>();
+        collectTaskIds(task, ids);
+        return ids;
+    }
+
+    private void collectTaskIds(Task task, List<Long> ids) {
+        if (task == null || task.getId() == null || ids.contains(task.getId())) {
+            return;
+        }
+        ids.add(task.getId());
+        taskRepository.findByParentTask_Id(task.getId()).forEach(child -> collectTaskIds(child, ids));
     }
 
     @Transactional(readOnly = true)
@@ -212,7 +268,7 @@ public class PlanningService {
     }
 
     @Transactional(readOnly = true)
-    public byte[] exportCsv(
+    public byte[] exportExcel(
             Long projectId,
             Long sprintId,
             String statut,
@@ -225,24 +281,172 @@ public class PlanningService {
     ) {
         User actor = projectAccessService.currentUser();
         List<Task> tasks = findAccessibleTasks(actor, projectId, sprintId, statut, priorite, assigneeId, search, sortBy, sortDir);
-        StringBuilder csv = new StringBuilder();
-        csv.append("ID,Titre,Statut,Priorite,Assigne,Reporter,Sprint,Story,Date Creation,Date Mise a Jour,Date Echeance,Labels\n");
-        for (Task task : tasks) {
-            csv.append(csv(task.getId()))
-                    .append(',').append(csv(task.getTitre()))
-                    .append(',').append(csv(name(task.getStatut())))
-                    .append(',').append(csv(name(task.getPriorite())))
-                    .append(',').append(csv(userName(task.getAssignedTo())))
-                    .append(',').append(csv(""))
-                    .append(',').append(csv(task.getSprint() != null ? task.getSprint().getNom() : ""))
-                    .append(',').append(csv(task.getStory() != null ? task.getStory().getTitre() : ""))
-                    .append(',').append(csv(toIso(task.getDateCreation())))
-                    .append(',').append(csv(toIso(task.getDateMiseAJour())))
-                    .append(',').append(csv(toIso(task.getDateEcheance())))
-                    .append(',').append(csv(String.join("|", task.getLabels() != null ? task.getLabels() : Set.of())))
-                    .append('\n');
+        try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            XSSFSheet sheet = workbook.createSheet("Planification");
+            sheet.setDisplayGridlines(false);
+            sheet.createFreezePane(0, 6);
+            addPlanningLogo(workbook, sheet);
+            addPlanningTitle(workbook, sheet, tasks.size(), projectId, statut, priorite, search);
+            writePlanningHeader(workbook, sheet);
+            writePlanningRows(workbook, sheet, tasks);
+            sheet.setAutoFilter(new CellRangeAddress(5, Math.max(5, tasks.size() + 5), 0, 12));
+            for (int i = 0; i <= 12; i++) {
+                sheet.autoSizeColumn(i);
+                int currentWidth = sheet.getColumnWidth(i);
+                sheet.setColumnWidth(i, Math.min(Math.max(currentWidth + 800, 3000), 12000));
+            }
+            workbook.write(out);
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new IllegalStateException("Impossible de generer l'export Excel planning", e);
         }
-        return csv.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    private void addPlanningLogo(XSSFWorkbook workbook, XSSFSheet sheet) {
+        ClassPathResource resource = new ClassPathResource("static/agileflow-icon.png");
+        if (!resource.exists()) {
+            return;
+        }
+        try (InputStream input = resource.getInputStream()) {
+            byte[] bytes = IOUtils.toByteArray(input);
+            int pictureIndex = workbook.addPicture(bytes, Workbook.PICTURE_TYPE_PNG);
+            XSSFDrawing drawing = sheet.createDrawingPatriarch();
+            ClientAnchor anchor = new XSSFClientAnchor();
+            anchor.setCol1(0);
+            anchor.setRow1(0);
+            anchor.setCol2(1);
+            anchor.setRow2(3);
+            drawing.createPicture(anchor, pictureIndex);
+        } catch (IOException ignored) {
+            // L'export reste utilisable sans logo si la ressource est indisponible.
+        }
+    }
+
+    private void addPlanningTitle(XSSFWorkbook workbook, XSSFSheet sheet, int taskCount, Long projectId, String statut, String priorite, String search) {
+        CellStyle titleStyle = workbook.createCellStyle();
+        Font titleFont = workbook.createFont();
+        titleFont.setBold(true);
+        titleFont.setFontHeightInPoints((short) 22);
+        titleFont.setColor(IndexedColors.ROYAL_BLUE.getIndex());
+        titleStyle.setFont(titleFont);
+        titleStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+
+        Row titleRow = sheet.createRow(0);
+        titleRow.setHeightInPoints(34);
+        Cell titleCell = titleRow.createCell(1);
+        titleCell.setCellValue("AgileFlow - Export Planification");
+        titleCell.setCellStyle(titleStyle);
+        sheet.addMergedRegion(new CellRangeAddress(0, 0, 1, 7));
+
+        CellStyle metaStyle = workbook.createCellStyle();
+        Font metaFont = workbook.createFont();
+        metaFont.setColor(IndexedColors.GREY_50_PERCENT.getIndex());
+        metaFont.setFontHeightInPoints((short) 10);
+        metaStyle.setFont(metaFont);
+
+        Row metaRow = sheet.createRow(1);
+        Cell metaCell = metaRow.createCell(1);
+        metaCell.setCellValue("Genere le " + toIso(LocalDateTime.now()) + " - " + taskCount + " tache(s)");
+        metaCell.setCellStyle(metaStyle);
+        sheet.addMergedRegion(new CellRangeAddress(1, 1, 1, 7));
+
+        Row filterRow = sheet.createRow(3);
+        Cell filterCell = filterRow.createCell(0);
+        filterCell.setCellValue("Filtres: projet=" + valueOrAll(projectId)
+                + " | statut=" + valueOrAll(statut)
+                + " | priorite=" + valueOrAll(priorite)
+                + " | recherche=" + valueOrAll(search));
+        filterCell.setCellStyle(metaStyle);
+        sheet.addMergedRegion(new CellRangeAddress(3, 3, 0, 12));
+    }
+
+    private void writePlanningHeader(XSSFWorkbook workbook, XSSFSheet sheet) {
+        CellStyle style = workbook.createCellStyle();
+        style.setFillForegroundColor(IndexedColors.ROYAL_BLUE.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setColor(IndexedColors.WHITE.getIndex());
+        style.setFont(font);
+
+        Row row = sheet.createRow(5);
+        row.setHeightInPoints(24);
+        String[] headers = {"ID", "Cle", "Titre", "Type", "Statut", "Priorite", "Assigne", "Reporter", "Sprint", "Story", "Creation", "Mise a jour", "Echeance"};
+        for (int i = 0; i < headers.length; i++) {
+            Cell cell = row.createCell(i);
+            cell.setCellValue(headers[i]);
+            cell.setCellStyle(style);
+        }
+    }
+
+    private void writePlanningRows(XSSFWorkbook workbook, XSSFSheet sheet, List<Task> tasks) {
+        CellStyle base = bodyStyle(workbook, IndexedColors.WHITE.getIndex());
+        CellStyle alt = bodyStyle(workbook, IndexedColors.GREY_25_PERCENT.getIndex());
+        int rowIndex = 6;
+        for (Task task : tasks) {
+            Row row = sheet.createRow(rowIndex);
+            CellStyle style = rowIndex % 2 == 0 ? base : alt;
+            writeCell(row, 0, task.getId(), style);
+            writeCell(row, 1, issueKey(task), style);
+            writeCell(row, 2, task.getTitre(), style);
+            writeCell(row, 3, name(task.getTypeTache()), style);
+            writeCell(row, 4, name(task.getStatut()), style);
+            writeCell(row, 5, name(task.getPriorite()), style);
+            writeCell(row, 6, userName(task.getAssignedTo()), style);
+            writeCell(row, 7, userName(task.getAssignedBy()), style);
+            writeCell(row, 8, task.getSprint() != null ? task.getSprint().getNom() : "", style);
+            writeCell(row, 9, task.getStory() != null ? task.getStory().getTitre() : "", style);
+            writeCell(row, 10, toIso(task.getDateCreation()), style);
+            writeCell(row, 11, toIso(task.getDateMiseAJour()), style);
+            writeCell(row, 12, toIso(task.getDateEcheance()), style);
+            rowIndex++;
+        }
+    }
+
+    private CellStyle bodyStyle(XSSFWorkbook workbook, short fillColor) {
+        CellStyle style = workbook.createCellStyle();
+        style.setFillForegroundColor(fillColor);
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        return style;
+    }
+
+    private void writeCell(Row row, int index, Object value, CellStyle style) {
+        Cell cell = row.createCell(index);
+        if (value instanceof Number number) {
+            cell.setCellValue(number.doubleValue());
+        } else {
+            cell.setCellValue(value == null ? "" : String.valueOf(value));
+        }
+        cell.setCellStyle(style);
+    }
+
+    private String issueKey(Task task) {
+        Project taskProject = task.getProject();
+        if (taskProject == null && task.getSprint() != null) {
+            taskProject = task.getSprint().getProject();
+        }
+        if (taskProject == null && task.getStory() != null && task.getStory().getBacklog() != null) {
+            taskProject = task.getStory().getBacklog().getProject();
+        }
+        String prefix = taskProject != null && taskProject.getIssuePrefix() != null && !taskProject.getIssuePrefix().isBlank()
+                ? taskProject.getIssuePrefix()
+                : "AGF";
+        return prefix + "-" + task.getId();
+    }
+
+    private String valueOrAll(Object value) {
+        return value == null || String.valueOf(value).isBlank() ? "Tous" : String.valueOf(value);
     }
 
     private List<Task> findAccessibleTasks(
@@ -563,7 +767,8 @@ public class PlanningService {
                 user.getPrenom(),
                 user.getEmail(),
                 initials(user),
-                avatarColor(user.getEmail())
+                avatarColor(user.getEmail()),
+                user.getAvatarUrl()
         );
     }
 

@@ -4,7 +4,7 @@ export type StoryPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type TaskStatut = 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
 export type TaskPriorite = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type TaskIssueType = 'EPIC' | 'TASK' | 'STORY' | 'FEATURE' | 'BUG';
-export type AnalyticsPeriod = 'WEEK' | 'MONTH';
+export type AnalyticsPeriod = 'WEEK' | 'MONTH' | 'YEAR';
 export type DiagramType =
   | 'FLOWCHART'
   | 'PROCESS'
@@ -29,6 +29,7 @@ export interface User {
   firstName: string;
   lastName: string;
   role: Role;
+  avatarUrl?: string | null;
 }
 
 export interface AuthResponse {
@@ -47,6 +48,7 @@ export interface UserListItem {
   createdAt: string | null;
   active: boolean | null;
   lastLogin: string | null;
+  avatarUrl?: string | null;
 }
 
 export interface TeamMembership {
@@ -139,6 +141,7 @@ export interface ProjectListItem {
   name: string;
   issuePrefix?: string;
   description: string | null;
+  iconUrl?: string | null;
   startDate: string | null;
   endDate: string | null;
   status: ProjectStatus;
@@ -176,6 +179,7 @@ export interface ProjectMember {
   projectRole?: string;
   owner: boolean;
   joinedAt: string | null;
+  avatarUrl?: string | null;
 }
 
 export interface InviteProjectMemberResult {
@@ -212,6 +216,7 @@ export interface CreateProjectPayload {
   name: string;
   issuePrefix?: string;
   description?: string;
+  iconUrl?: string | null;
   startDate: string;
   endDate?: string;
   status: ProjectStatus;
@@ -222,6 +227,7 @@ export interface UpdateProjectPayload {
   name: string;
   issuePrefix?: string;
   description?: string;
+  iconUrl?: string | null;
   startDate: string;
   endDate?: string;
   status: ProjectStatus;
@@ -534,6 +540,7 @@ export interface CollaboratorInfo {
   userId: number;
   username: string;
   email?: string;
+  avatarUrl?: string | null;
   permission?: 'EDIT' | 'COMMENT' | 'VIEW';
   color: string;
   cursorX: number;
@@ -563,6 +570,7 @@ export interface DiagramUpdateMessage {
   diagramId: number;
   userId: number;
   userName: string;
+  avatarUrl?: string | null;
   userColor: string;
   payload: unknown;
 }

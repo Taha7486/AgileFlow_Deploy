@@ -25,15 +25,15 @@ export const planningApi = {
     return data;
   },
 
-  exportCsv: async (filters: PlanningFilters): Promise<void> => {
+  exportExcel: async (filters: PlanningFilters): Promise<void> => {
     const { data } = await api.get('/tasks/planning/export', {
-      params: cleanParams({ ...filters, format: 'csv' }),
+      params: cleanParams({ ...filters, format: 'xlsx' }),
       responseType: 'blob',
     });
-    const url = window.URL.createObjectURL(new Blob([data], { type: 'text/csv' }));
+    const url = window.URL.createObjectURL(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `agileflow-planning-${Date.now()}.csv`);
+    link.setAttribute('download', `agileflow-planning-${Date.now()}.xlsx`);
     document.body.appendChild(link);
     link.click();
     link.remove();

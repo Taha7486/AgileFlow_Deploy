@@ -10,6 +10,7 @@ public record CreateProjectRequest(
         @NotBlank String name,
         String issuePrefix,
         String description,
+        String iconUrl,
         @NotNull LocalDate startDate,
         LocalDate endDate,
         @NotNull Project.Statut status,

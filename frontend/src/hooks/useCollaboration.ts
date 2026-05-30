@@ -41,17 +41,19 @@ export const useCollaboration = ({ diagramId, currentUser, onRemoteContent }: Us
     }
   }, []);
 
-  const mergeUser = useCallback((message: DiagramUpdateMessage | { userId: number; userName?: string; userColor?: string }) => {
+  const mergeUser = useCallback((message: DiagramUpdateMessage | { userId: number; userName?: string; userColor?: string; avatarUrl?: string | null }) => {
     if (!message.userId || message.userId === currentUserId) return;
     cancelLeaveTimer(message.userId);
     setActiveUsers((prev) => {
+      const existing = prev.find((user) => user.userId === message.userId);
       const next = prev.filter((user) => user.userId !== message.userId);
       next.push({
         userId: message.userId,
         username: message.userName ?? `Utilisateur ${message.userId}`,
+        avatarUrl: message.avatarUrl ?? null,
         color: message.userColor ?? COLORS[message.userId % COLORS.length],
-        cursorX: 0,
-        cursorY: 0,
+        cursorX: existing?.cursorX ?? 0,
+        cursorY: existing?.cursorY ?? 0,
         isActive: true,
         lastSeen: Date.now(),
       });
@@ -82,10 +84,12 @@ export const useCollaboration = ({ diagramId, currentUser, onRemoteContent }: Us
       return;
     }
     if (message.type === 'ELEMENT_LOCK') {
+      mergeUser(message);
       setLockedElements((prev) => new Map(prev).set(String(message.payload), { userId: message.userId, color: message.userColor }));
       return;
     }
     if (message.type === 'ELEMENT_UNLOCK') {
+      mergeUser(message);
       setLockedElements((prev) => {
         const next = new Map(prev);
         next.delete(String(message.payload));
@@ -116,6 +120,7 @@ export const useCollaboration = ({ diagramId, currentUser, onRemoteContent }: Us
       diagramId,
       userId: currentUserId,
       userName: currentUserName,
+      avatarUrl: currentUser?.avatarUrl ?? null,
       userColor,
       payload: null,
     });
@@ -125,13 +130,14 @@ export const useCollaboration = ({ diagramId, currentUser, onRemoteContent }: Us
         diagramId,
         userId: currentUserId,
         userName: currentUserName,
+        avatarUrl: currentUser?.avatarUrl ?? null,
         userColor,
         payload: null,
       }, false);
       diagramSub?.unsubscribe();
       presenceSub?.unsubscribe();
     };
-  }, [connectionState, currentUserId, currentUserName, diagramId, handleMessage, mergeUser, publish, scheduleUserLeave, subscribe, userColor]);
+  }, [connectionState, currentUser?.avatarUrl, currentUserId, currentUserName, diagramId, handleMessage, mergeUser, publish, scheduleUserLeave, subscribe, userColor]);
 
   useEffect(() => () => {
     leaveTimersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -146,10 +152,11 @@ export const useCollaboration = ({ diagramId, currentUser, onRemoteContent }: Us
       diagramId,
       userId: currentUserId,
       userName: currentUserName,
+      avatarUrl: currentUser?.avatarUrl ?? null,
       userColor,
       payload,
     });
-  }, [currentUserId, currentUserName, diagramId, publish, userColor]);
+  }, [currentUser?.avatarUrl, currentUserId, currentUserName, diagramId, publish, userColor]);
 
   const sendCursor = useCallback((x: number, y: number) => {
     if (!diagramId || !currentUserId) return;
@@ -158,10 +165,11 @@ export const useCollaboration = ({ diagramId, currentUser, onRemoteContent }: Us
       diagramId,
       userId: currentUserId,
       userName: currentUserName,
+      avatarUrl: currentUser?.avatarUrl ?? null,
       userColor,
       payload: { x, y },
     }, false);
-  }, [currentUserId, currentUserName, diagramId, publish, userColor]);
+  }, [currentUser?.avatarUrl, currentUserId, currentUserName, diagramId, publish, userColor]);
 
   const lockElement = useCallback((elementId: string) => {
     if (!diagramId || !currentUserId) return;
@@ -170,10 +178,11 @@ export const useCollaboration = ({ diagramId, currentUser, onRemoteContent }: Us
       diagramId,
       userId: currentUserId,
       userName: currentUserName,
+      avatarUrl: currentUser?.avatarUrl ?? null,
       userColor,
       payload: elementId,
     });
-  }, [currentUserId, currentUserName, diagramId, publish, userColor]);
+  }, [currentUser?.avatarUrl, currentUserId, currentUserName, diagramId, publish, userColor]);
 
   const unlockElement = useCallback((elementId: string) => {
     if (!diagramId || !currentUserId) return;
@@ -182,10 +191,11 @@ export const useCollaboration = ({ diagramId, currentUser, onRemoteContent }: Us
       diagramId,
       userId: currentUserId,
       userName: currentUserName,
+      avatarUrl: currentUser?.avatarUrl ?? null,
       userColor,
       payload: elementId,
     });
-  }, [currentUserId, currentUserName, diagramId, publish, userColor]);
+  }, [currentUser?.avatarUrl, currentUserId, currentUserName, diagramId, publish, userColor]);
 
   return { activeUsers, lockedElements, userColor, connectionState, sendUpdate, sendCursor, lockElement, unlockElement };
 };

@@ -11,6 +11,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
 
+    void deleteByProject_Id(Long projectId);
+
     @Query("SELECT m FROM ChatMessage m WHERE m.channelType = 'GLOBAL' ORDER BY m.createdAt DESC")
     Page<ChatMessage> findGlobalMessages(Pageable pageable);
 

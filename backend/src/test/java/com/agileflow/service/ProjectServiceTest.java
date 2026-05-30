@@ -4,10 +4,17 @@ import com.agileflow.dto.CreateProjectRequest;
 import com.agileflow.dto.ProjectDTO;
 import com.agileflow.dto.UpdateProjectRequest;
 import com.agileflow.entity.Project;
-import com.agileflow.entity.Sprint;
 import com.agileflow.entity.User;
-import com.agileflow.exception.BadRequestException;
 import com.agileflow.exception.ForbiddenOperationException;
+import com.agileflow.repository.ActivityLogRepository;
+import com.agileflow.repository.BacklogRepository;
+import com.agileflow.repository.ChatMessageRepository;
+import com.agileflow.repository.CommentRepository;
+import com.agileflow.repository.DiagramRepository;
+import com.agileflow.repository.EpicRepository;
+import com.agileflow.repository.GitHubIntegrationRepository;
+import com.agileflow.repository.GitHubTaskBranchRepository;
+import com.agileflow.repository.ProjectInvitationRepository;
 import com.agileflow.repository.ProjectMemberRepository;
 import com.agileflow.repository.ProjectRepository;
 import com.agileflow.repository.SprintRepository;
@@ -17,7 +24,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -27,7 +33,6 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -51,13 +56,38 @@ class ProjectServiceTest {
     private ProjectMemberRepository projectMemberRepository;
 
     @Mock
-    private ActivityLogger activityLogger;
+    private ProjectInvitationRepository projectInvitationRepository;
 
     @Mock
-    private ProjectAccessService projectAccessService;
+    private GitHubIntegrationRepository gitHubIntegrationRepository;
 
-    @InjectMocks
+    @Mock
+    private GitHubTaskBranchRepository gitHubTaskBranchRepository;
+
+    @Mock
+    private DiagramRepository diagramRepository;
+
+    @Mock
+    private CommentRepository commentRepository;
+
+    @Mock
+    private ChatMessageRepository chatMessageRepository;
+
+    @Mock
+    private ActivityLogRepository activityLogRepository;
+
+    @Mock
+    private BacklogRepository backlogRepository;
+
+    @Mock
+    private EpicRepository epicRepository;
+
+    @Mock
+    private ActivityLogger activityLogger;
+
     private ProjectService projectService;
+
+    private TestProjectAccessService projectAccessService;
 
     private User owner;
     private User otherUser;
@@ -92,11 +122,31 @@ class ProjectServiceTest {
                 .statut(Project.Statut.ACTIF)
                 .manager(owner)
                 .build();
+
+        projectAccessService = new TestProjectAccessService();
+        projectService = new ProjectService(
+                projectRepository,
+                sprintRepository,
+                taskRepository,
+                teamRepository,
+                projectMemberRepository,
+                projectInvitationRepository,
+                gitHubIntegrationRepository,
+                gitHubTaskBranchRepository,
+                diagramRepository,
+                commentRepository,
+                chatMessageRepository,
+                activityLogRepository,
+                backlogRepository,
+                epicRepository,
+                activityLogger,
+                projectAccessService
+        );
     }
 
     @Test
     void createProject_setsCurrentUserAsOwner() {
-        when(projectAccessService.currentUser()).thenReturn(owner);
+        projectAccessService.currentUser = owner;
         when(projectRepository.save(any(Project.class))).thenAnswer(invocation -> {
             Project saved = invocation.getArgument(0);
             saved.setId(99L);
@@ -107,7 +157,9 @@ class ProjectServiceTest {
 
         ProjectDTO dto = projectService.createProject(new CreateProjectRequest(
                 "Portail Web",
+                "WEB",
                 "Nouveau projet client",
+                null,
                 LocalDate.of(2026, 5, 1),
                 LocalDate.of(2026, 7, 15),
                 Project.Statut.ACTIF,
@@ -120,6 +172,7 @@ class ProjectServiceTest {
         Project saved = captor.getValue();
 
         assertThat(saved.getNom()).isEqualTo("Portail Web");
+        assertThat(saved.getIssuePrefix()).isEqualTo("WEB");
         assertThat(saved.getManager()).isEqualTo(owner);
         assertThat(dto.id()).isEqualTo(99L);
         assertThat(dto.managerName()).isEqualTo("Sara Owner");
@@ -128,14 +181,15 @@ class ProjectServiceTest {
 
     @Test
     void updateProject_rejectsNonOwner() {
-        when(projectAccessService.getProjectOrThrow(project.getId())).thenReturn(project);
-        when(projectAccessService.currentUser()).thenReturn(otherUser);
-        doThrow(new ForbiddenOperationException("Seul le proprietaire du projet peut effectuer cette action."))
-                .when(projectAccessService).assertCanManageProject(otherUser, project);
+        projectAccessService.project = project;
+        projectAccessService.currentUser = otherUser;
+        projectAccessService.rejectManage = true;
 
         assertThatThrownBy(() -> projectService.updateProject(project.getId(), new UpdateProjectRequest(
                 "Migration API v2",
+                "MAP",
                 "Tentative de modification",
+                null,
                 LocalDate.of(2026, 4, 1),
                 LocalDate.of(2026, 6, 1),
                 Project.Statut.ACTIF,
@@ -146,17 +200,41 @@ class ProjectServiceTest {
     }
 
     @Test
-    void deleteProject_rejectsProjectWithSprints() {
-        when(projectAccessService.getProjectOrThrow(project.getId())).thenReturn(project);
-        when(projectAccessService.currentUser()).thenReturn(owner);
-        when(sprintRepository.findByProjectId(project.getId())).thenReturn(List.of(
-                Sprint.builder().id(1L).nom("Sprint 1").project(project).build()
-        ));
+    void deleteProject_archivesProjectEvenWithSprints() {
+        projectAccessService.project = project;
+        projectAccessService.currentUser = owner;
+        when(projectRepository.save(any(Project.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertThatThrownBy(() -> projectService.deleteProject(project.getId()))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("sprints");
+        projectService.deleteProject(project.getId());
 
-        verify(projectRepository, never()).delete(any(Project.class));
+        assertThat(project.getStatut()).isEqualTo(Project.Statut.ARCHIVE);
+        verify(projectRepository).save(project);
+    }
+
+    private static class TestProjectAccessService extends ProjectAccessService {
+        private User currentUser;
+        private Project project;
+        private boolean rejectManage;
+
+        TestProjectAccessService() {
+            super(null, null, null);
+        }
+
+        @Override
+        public User currentUser() {
+            return currentUser;
+        }
+
+        @Override
+        public Project getProjectOrThrow(Long projectId) {
+            return project;
+        }
+
+        @Override
+        public void assertCanManageProject(User user, Project project) {
+            if (rejectManage) {
+                throw new ForbiddenOperationException("Seul le proprietaire du projet peut effectuer cette action.");
+            }
+        }
     }
 }

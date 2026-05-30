@@ -47,6 +47,7 @@ export interface WorkloadItem {
   prenom: string;
   initiales: string;
   avatarColor: string;
+  avatarUrl?: string | null;
   tachesAssignees: number;
   pourcentage: number;
 }
@@ -66,6 +67,7 @@ export interface ActivityItem {
   userName: string;
   userInitiales: string;
   userAvatarColor: string;
+  userAvatarUrl?: string | null;
   action: string;
   fieldName: string;
   preposition: string;

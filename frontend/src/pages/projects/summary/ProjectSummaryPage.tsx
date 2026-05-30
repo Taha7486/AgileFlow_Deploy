@@ -42,14 +42,16 @@ const ProjectSummaryPage = () => {
       <Box sx={{ maxWidth: 1500, mx: 'auto', width: '100%', px: { xs: 2, md: 4, xl: 6 }, py: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
         {error && <Alert severity="error">{error}</Alert>}
         <PageHeader icon={<DashboardIcon />} title="Résumé" subtitle="Tableau de bord du projet" disablePadding />
-        <SummaryToolbar projectId={pId} />
-        <Box>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
+          <Box>
           <Typography variant="h5" fontWeight={700} color="#172B4D">
             Bonjour, {user?.firstName ?? 'bienvenue'}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Voici le resume du projet {data?.project.nom ?? 'selectionne'}.
           </Typography>
+          </Box>
+          <SummaryToolbar projectId={pId} />
         </Box>
         <ProjectReceivedInvitations onAccepted={() => void loadSummary(pId)} />
 

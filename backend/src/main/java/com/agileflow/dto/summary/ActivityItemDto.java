@@ -5,6 +5,7 @@ public record ActivityItemDto(
         String userName,
         String userInitiales,
         String userAvatarColor,
+        String userAvatarUrl,
         String action,
         String fieldName,
         String preposition,

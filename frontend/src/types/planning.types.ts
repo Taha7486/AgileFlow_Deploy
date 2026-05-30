@@ -12,6 +12,7 @@ export interface UserSummary {
   email: string;
   initiales: string;
   avatarColor: string;
+  avatarUrl?: string | null;
 }
 
 export interface StorySummary { id: number; titre: string; priorite: string; }

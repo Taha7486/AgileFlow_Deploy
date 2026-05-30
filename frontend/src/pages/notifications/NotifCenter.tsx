@@ -23,12 +23,15 @@ import {
 import { DeleteOutline, NotificationsNoneOutlined, NotificationsOutlined, Send } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../hooks/useNotifications';
 import { sendAnnouncement, type AnnouncementTargetType } from '../../api/adminApi';
 import { fetchUsers } from '../../api/usersApi';
 import { useActiveProject } from '../../hooks/useActiveProject';
 import type { UserListItem } from '../../types';
+import { getNotificationTargetUrl } from '../../utils/notificationNavigation';
+import type { NotificationDTO } from '../../api/notificationsApi';
 
 const AdminAnnouncements = () => {
   const { activeProject } = useActiveProject();
@@ -160,6 +163,7 @@ const AdminAnnouncements = () => {
 
 const UserNotificationCenter = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const {
     notifications,
     unreadCount,
@@ -172,6 +176,16 @@ const UserNotificationCenter = () => {
   } = useNotifications();
 
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const handleNotificationClick = async (notification: NotificationDTO) => {
+    if (!notification.lu) {
+      await markAsRead(notification.id);
+    }
+    const targetUrl = getNotificationTargetUrl(notification);
+    if (targetUrl) {
+      navigate(targetUrl);
+    }
+  };
 
   const handleDelete = async (id: number, e: MouseEvent) => {
     e.stopPropagation();
@@ -209,7 +223,7 @@ const UserNotificationCenter = () => {
             {notifications.map((notification) => (
               <ListItem
                 key={notification.id}
-                onClick={() => !notification.lu && markAsRead(notification.id)}
+                onClick={() => void handleNotificationClick(notification)}
                 sx={{
                   py: 2,
                   px: 2,
@@ -217,7 +231,7 @@ const UserNotificationCenter = () => {
                   borderColor: 'divider',
                   alignItems: 'flex-start',
                   gap: 1.5,
-                  cursor: notification.lu ? 'default' : 'pointer',
+                  cursor: 'pointer',
                   bgcolor: !notification.lu ? alpha(theme.palette.primary.main, 0.06) : 'transparent',
                   '&:hover': {
                     bgcolor: !notification.lu ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,

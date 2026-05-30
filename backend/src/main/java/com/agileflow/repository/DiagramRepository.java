@@ -3,9 +3,11 @@ package com.agileflow.repository;
 import com.agileflow.entity.Diagram;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -64,4 +66,8 @@ public interface DiagramRepository extends JpaRepository<Diagram, Long> {
 
     @EntityGraph(attributePaths = {"project", "project.manager", "owner", "createdBy", "task"})
     List<Diagram> findByTaskId(Long taskId);
+
+    @Modifying
+    @Query("UPDATE Diagram d SET d.task = NULL WHERE d.task.id IN :taskIds")
+    void detachTasks(@Param("taskIds") Collection<Long> taskIds);
 }

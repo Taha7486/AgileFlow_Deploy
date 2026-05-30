@@ -15,8 +15,9 @@ import {
   Tooltip,
   Snackbar,
   Alert,
+  Avatar,
 } from '@mui/material';
-import { Send, Close, ArrowBack, Forum } from '@mui/icons-material';
+import { Send, Close, ArrowBack, Forum, Refresh } from '@mui/icons-material';
 import { useChat, useChatStore } from '../../hooks/useChat';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useAuthStore } from '../../store/authStore';
@@ -24,6 +25,7 @@ import MessageBubble from './MessageBubble';
 import ConversationList, { Conversation } from './ConversationList';
 import { ChannelType, ProjectListItem } from '../../types';
 import { fetchProjects } from '../../api/projectsApi';
+import { fetchPresenceSnapshot } from '../../api/chatApi';
 import { fetchChatContacts, type ChatContact } from '../../api/chatContactsApi';
 import { resolvePresenceDisplay, usePresenceStore } from '../../store/presenceStore';
 
@@ -41,6 +43,7 @@ const ChatPanel = ({ open, onClose }: ChatPanelProps) => {
   const incomingAlert = useChatStore((state) => state.incomingAlert);
   const setIncomingAlert = useChatStore((state) => state.setIncomingAlert);
   const getPresence = usePresenceStore((state) => state.getPresence);
+  const setPresenceSnapshot = usePresenceStore((state) => state.setPresenceSnapshot);
 
   const [activeChannel, setActiveChannel] = useState<{
     type: ChannelType;
@@ -48,6 +51,8 @@ const ChatPanel = ({ open, onClose }: ChatPanelProps) => {
     name: string;
     projectId?: number;
     recipientId?: number;
+    avatar?: string | null;
+    presence?: ReturnType<typeof resolvePresenceDisplay>;
   } | null>(null);
 
   const [view, setView] = useState<'list' | 'conversation'>('list');
@@ -71,6 +76,7 @@ const ChatPanel = ({ open, onClose }: ChatPanelProps) => {
     messages,
     sendMessage,
     loadMoreMessages,
+    refreshMessages,
     isLoadingHistory,
     hasMore,
   } = useChat({
@@ -91,18 +97,33 @@ const ChatPanel = ({ open, onClose }: ChatPanelProps) => {
     }
   }, []);
 
+  const loadChatSideData = useCallback(async () => {
+    try {
+      const [projData, presenceRows] = await Promise.all([
+        fetchProjects(),
+        fetchPresenceSnapshot(),
+      ]);
+      setProjects(projData);
+      setPresenceSnapshot(presenceRows);
+      await loadContacts();
+    } catch (error) {
+      console.error('Failed to load chat side data:', error);
+    }
+  }, [loadContacts, setPresenceSnapshot]);
+
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const projData = await fetchProjects();
-        setProjects(projData);
-        await loadContacts();
-      } catch (error) {
-        console.error('Failed to load chat side data:', error);
-      }
-    };
-    if (open) loadData();
-  }, [open, loadContacts]);
+    if (open) void loadChatSideData();
+  }, [open, loadChatSideData]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const intervalId = window.setInterval(() => {
+      fetchPresenceSnapshot()
+        .then(setPresenceSnapshot)
+        .catch(() => undefined);
+    }, 10000);
+    return () => window.clearInterval(intervalId);
+  }, [open, setPresenceSnapshot]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -123,13 +144,14 @@ const ChatPanel = ({ open, onClose }: ChatPanelProps) => {
     }
   };
 
-  const conversations: Conversation[] = [
+  const conversations: Conversation[] = useMemo(() => [
     ...projects.map((p) => ({
       id: `project-${p.id}`,
       name: p.name,
       type: 'PROJECT' as ChannelType,
       unreadCount: unreadCounts[`project-${p.id}`] || 0,
       projectId: p.id,
+      avatar: p.iconUrl ?? null,
     })),
     ...contacts.map((c) => ({
       id: `private-${c.userId}`,
@@ -138,9 +160,20 @@ const ChatPanel = ({ open, onClose }: ChatPanelProps) => {
       unreadCount: unreadCounts[`private-${c.userId}`] || 0,
       recipientId: c.userId,
       presence: resolvePresenceDisplay(getPresence(c.userId)),
-      avatar: null,
+      avatar: c.avatarUrl ?? null,
     })),
-  ];
+  ], [contacts, getPresence, projects, unreadCounts]);
+
+  useEffect(() => {
+    if (!activeChannel) return;
+    const refreshed = conversations.find((conversation) => conversation.id === activeChannel.id);
+    if (!refreshed) return;
+    if (refreshed.avatar === activeChannel.avatar && refreshed.presence === activeChannel.presence) return;
+    setActiveChannel((current) => current && current.id === refreshed.id
+      ? { ...current, avatar: refreshed.avatar ?? null, presence: refreshed.presence }
+      : current
+    );
+  }, [activeChannel, conversations]);
 
   const handleSelectConversation = (conv: Conversation) => {
     setActiveChannel({
@@ -149,6 +182,8 @@ const ChatPanel = ({ open, onClose }: ChatPanelProps) => {
       name: conv.name,
       projectId: conv.projectId,
       recipientId: conv.recipientId,
+      avatar: conv.avatar ?? null,
+      presence: conv.presence,
     });
     setView('conversation');
     setIncomingAlert(null);
@@ -156,6 +191,13 @@ const ChatPanel = ({ open, onClose }: ChatPanelProps) => {
 
   const handleContactsChanged = async () => {
     await loadContacts();
+  };
+
+  const handleRefresh = async () => {
+    await loadChatSideData();
+    if (activeChannel) {
+      refreshMessages();
+    }
   };
 
   const handleOpenAlertConversation = () => {
@@ -172,16 +214,9 @@ const ChatPanel = ({ open, onClose }: ChatPanelProps) => {
       anchor="right"
       open={open}
       onClose={onClose}
-      variant={isDesktop ? 'persistent' : 'temporary'}
+      variant="temporary"
       sx={{
-        width: open ? 350 : 0,
-        flexShrink: 0,
-        zIndex: (t) => (isDesktop ? t.zIndex.drawer : t.zIndex.modal),
-        visibility: open ? 'visible' : 'hidden',
-        transition: theme.transitions.create(['width', 'visibility'], {
-          easing: theme.transitions.easing.sharp,
-          duration: theme.transitions.duration.leavingScreen,
-        }),
+        zIndex: (t) => t.zIndex.modal,
         '& .MuiDrawer-paper': {
           width: 350,
           boxSizing: 'border-box',
@@ -207,21 +242,33 @@ const ChatPanel = ({ open, onClose }: ChatPanelProps) => {
           )}
           <Box
             onClick={() => view === 'conversation' && setView('list')}
-            sx={{ cursor: view === 'conversation' ? 'pointer' : 'default' }}
+            sx={{ cursor: view === 'conversation' ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 1 }}
           >
-            <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 600 }}>
-              {view === 'list' ? 'Chat Collaboratif' : activeChannel?.name ?? 'Chat'}
-            </Typography>
-            {view === 'conversation' && (
-              <Typography variant="caption" sx={{ display: 'block', opacity: 0.8, mt: -0.5 }}>
-                Cliquez pour changer de canal
-              </Typography>
+            {view === 'conversation' && activeChannel?.avatar && (
+              <Avatar src={activeChannel.avatar} sx={{ width: 32, height: 32 }} />
             )}
+            <Box>
+              <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                {view === 'list' ? 'Chat Collaboratif' : activeChannel?.name ?? 'Chat'}
+              </Typography>
+              {view === 'conversation' && (
+                <Typography variant="caption" sx={{ display: 'block', opacity: 0.8, mt: -0.5 }}>
+                  Cliquez pour changer de canal
+                </Typography>
+              )}
+            </Box>
           </Box>
         </Stack>
-        <IconButton size="small" onClick={onClose} sx={{ color: 'white' }}>
-          <Close />
-        </IconButton>
+        <Stack direction="row" spacing={0.5} alignItems="center">
+          <Tooltip title="Actualiser">
+            <IconButton size="small" onClick={() => void handleRefresh()} sx={{ color: 'white' }}>
+              <Refresh fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <IconButton size="small" onClick={onClose} sx={{ color: 'white' }}>
+            <Close />
+          </IconButton>
+        </Stack>
       </Box>
 
       <Divider />

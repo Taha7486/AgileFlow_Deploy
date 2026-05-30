@@ -57,9 +57,15 @@ public class NotificationService {
 
     @Transactional
     public Notification createAndBroadcast(User user, String message) {
+        return createAndBroadcast(user, message, null);
+    }
+
+    @Transactional
+    public Notification createAndBroadcast(User user, String message, String targetUrl) {
         Notification notification = Notification.builder()
                 .user(user)
                 .message(message)
+                .targetUrl(targetUrl)
                 .lu(false)
                 .dateCreation(LocalDateTime.now())
                 .build();
@@ -73,6 +79,7 @@ public class NotificationService {
         return new NotificationDTO(
                 notification.getId(),
                 notification.getMessage(),
+                notification.getTargetUrl(),
                 notification.isLu(),
                 notification.getDateCreation()
         );

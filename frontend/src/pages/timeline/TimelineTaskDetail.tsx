@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { ArrowBack, Close } from '@mui/icons-material';
-import { Box, Chip, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Avatar, Box, Chip, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import TaskTypeIcon from '../../components/planning/TaskTypeIcon';
 import { useTimelineStore } from '../../store/timelineStore';
 import { STATUT_CONFIG, TYPE_CONFIG } from '../../types/timeline.types';
 import type { TimelineStatut, TimelineTask } from '../../types/timeline.types';
+import { resolvePresenceDisplay, usePresenceStore } from '../../store/presenceStore';
 
 interface Props {
   taskId: number;
@@ -15,6 +16,7 @@ const findTask = (tasks: TimelineTask[], id: number) => tasks.find((task) => tas
 
 const TimelineTaskDetail = ({ taskId, onClose }: Props) => {
   const { data, updateTaskDates } = useTimelineStore();
+  const getPresence = usePresenceStore((state) => state.getPresence);
   const task = useMemo(() => {
     if (!data) return null;
     const fromEpic = data.epics.flatMap((epic) => epic.taches).find((item) => item.id === taskId);
@@ -35,6 +37,7 @@ const TimelineTaskDetail = ({ taskId, onClose }: Props) => {
   }
 
   const status = STATUT_CONFIG[task.statut] ?? STATUT_CONFIG.TODO;
+  const assigneePresence = resolvePresenceDisplay(task.assignee ? getPresence(task.assignee.id) : undefined);
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#FFFFFF' }}>
@@ -59,7 +62,25 @@ const TimelineTaskDetail = ({ taskId, onClose }: Props) => {
           </Stack>
           <Box>
             <Typography sx={{ fontSize: 13, color: '#6B778C', mb: 0.5 }}>Assigne</Typography>
-            <Typography>{task.assignee ? `${task.assignee.prenom} ${task.assignee.nom}` : 'Non assigne'}</Typography>
+            {task.assignee ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Avatar
+                  src={task.assignee.avatarUrl ?? undefined}
+                  sx={{
+                    width: 28,
+                    height: 28,
+                    bgcolor: task.assignee.avatarColor,
+                    fontSize: 12,
+                    border: assigneePresence === 'LIVE' ? '2px solid #44b700' : undefined,
+                  }}
+                >
+                  {task.assignee.initiales}
+                </Avatar>
+                <Typography>{task.assignee.prenom} {task.assignee.nom}</Typography>
+              </Box>
+            ) : (
+              <Typography>Non assigne</Typography>
+            )}
           </Box>
         </Stack>
       </Box>

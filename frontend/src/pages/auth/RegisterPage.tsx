@@ -1,38 +1,50 @@
-import React, { useEffect, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  IconButton,
-  InputAdornment,
-  Paper,
-  TextField,
-  Typography,
-} from '@mui/material';
+import React, { useEffect, useRef, useState } from 'react';
+import { Alert, CircularProgress, IconButton } from '@mui/material';
 import {
   Cancel,
   CheckCircle,
-  MarkEmailReadOutlined,
-  PersonAddOutlined,
+  GitHub,
+  Google,
   Refresh,
   Visibility,
   VisibilityOff,
 } from '@mui/icons-material';
+import { ArrowRight, CheckCircle2, Lock, Mail, User, Users } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/axiosInterceptor';
 import { validateInvitationToken } from '../../api/invitationApi';
+import { fetchProjects } from '../../api/projectsApi';
 import { useAuth } from '../../context/AuthContext';
 import { passwordMeetsPolicy, PASSWORD_REQUIREMENTS_TEXT } from '../../utils/passwordPolicy';
+import './AuthPages.css';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+const OAUTH_BASE_URL = API_URL.replace(/\/api\/?$/, '');
 const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-const homeForRole = (role: string) => (role === 'ROLE_ADMIN' ? '/admin' : '/dashboard');
+const homeAfterAuth = async (role: string) => {
+  if (role === 'ROLE_ADMIN') return '/admin';
+  try {
+    const projects = await fetchProjects();
+    return projects.length > 0 ? '/dashboard' : '/';
+  } catch {
+    return '/dashboard';
+  }
+};
+
+const passwordColor = (strength: number) => {
+  if (strength === 1) return '#ef4444';
+  if (strength === 2) return '#f59e0b';
+  if (strength === 3) return '#2563eb';
+  if (strength >= 4) return '#16a34a';
+  return '#e2e8f0';
+};
 
 const RegisterPage = () => {
   const [form, setForm] = useState({ prenom: '', nom: '', email: '', password: '', confirm: '' });
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,6 +54,7 @@ const RegisterPage = () => {
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [invitationProjectName, setInvitationProjectName] = useState('');
   const [invitationLoading, setInvitationLoading] = useState(false);
+  const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -132,14 +145,6 @@ const RegisterPage = () => {
     }
   };
 
-  const getPwdColor = () => {
-    if (passwordStrength === 0) return 'grey.300';
-    if (passwordStrength === 1) return 'error.main';
-    if (passwordStrength === 2) return 'warning.main';
-    if (passwordStrength === 3) return 'info.main';
-    return 'success.main';
-  };
-
   const getPwdLabel = () => {
     if (passwordStrength === 0) return '';
     if (passwordStrength === 1) return 'Faible';
@@ -178,6 +183,7 @@ const RegisterPage = () => {
       setOtpSent(true);
       setOtp('');
       setSuccess(data.message || 'Un code OTP a ete envoye a votre email.');
+      window.setTimeout(() => otpRefs.current[0]?.focus(), 50);
     } catch (err: any) {
       setError(err.response?.data?.message || "Erreur lors de l'inscription.");
     } finally {
@@ -200,8 +206,9 @@ const RegisterPage = () => {
         role: data.role,
         firstName: data.prenom ?? form.prenom,
         lastName: data.nom ?? form.nom,
+        avatarUrl: data.avatarUrl ?? null,
       }, data.refreshToken);
-      navigate(homeForRole(data.role), { replace: true });
+      navigate(await homeAfterAuth(data.role), { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.message || 'Code OTP incorrect ou expire.');
     } finally {
@@ -217,147 +224,192 @@ const RegisterPage = () => {
       const { data } = await api.post('/auth/resend-verification', { email: form.email });
       setSuccess(data.message || 'Un nouveau code OTP a ete envoye.');
       setOtp('');
+      otpRefs.current[0]?.focus();
     } catch (err: any) {
-      setError(err.response?.data?.message || "Impossible de renvoyer le code.");
+      setError(err.response?.data?.message || 'Impossible de renvoyer le code.');
     } finally {
       setResendLoading(false);
     }
   };
 
+  const handleOAuthLogin = (provider: 'google' | 'github') => {
+    window.location.href = `${OAUTH_BASE_URL}/oauth2/authorization/${provider}`;
+  };
+
+  const handleOtpChange = (index: number, value: string) => {
+    const digit = value.replace(/\D/g, '').slice(-1);
+    const next = otp.split('');
+    next[index] = digit;
+    const joined = Array.from({ length: 6 }, (_, idx) => next[idx] ?? '').join('');
+    setOtp(joined);
+    if (digit && index < 5) otpRefs.current[index + 1]?.focus();
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
   const renderRegisterForm = () => (
-    <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Box sx={{ display: 'flex', gap: 2 }}>
-        <TextField label="Prenom" name="prenom" value={form.prenom} onChange={handleChange} required fullWidth />
-        <TextField label="Nom" name="nom" value={form.nom} onChange={handleChange} required fullWidth />
-      </Box>
+    <>
+      <div className="auth-oauth-stack">
+        <button type="button" className="auth-oauth-button" onClick={() => handleOAuthLogin('github')}>
+          <GitHub fontSize="small" />
+          Continuer avec GitHub
+        </button>
+        <button type="button" className="auth-oauth-button" onClick={() => handleOAuthLogin('google')}>
+          <Google fontSize="small" />
+          Continuer avec Google
+        </button>
+      </div>
 
-      <TextField
-        label="Adresse email"
-        name="email"
-        type="email"
-        value={form.email}
-        onChange={handleChange}
-        required
-        fullWidth
-        disabled={Boolean(invitationToken)}
-        error={!!emailError}
-        helperText={emailError || (invitationToken ? 'Adresse imposee par le lien invitation.' : '')}
-        InputProps={{
-          endAdornment: (
-            <InputAdornment position="end">
-              {checkingEmail && <CircularProgress size={20} />}
-              {!checkingEmail && emailError && <Cancel color="error" />}
-              {!checkingEmail && !emailError && form.email && emailRegex.test(form.email) && <CheckCircle color="success" />}
-            </InputAdornment>
-          ),
-        }}
-      />
+      <div className="auth-separator">ou</div>
 
-      <Box>
-        <TextField
-          label="Mot de passe"
-          name="password"
-          type={showPass ? 'text' : 'password'}
-          value={form.password}
-          onChange={handleChange}
-          required
-          fullWidth
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="end">
-                <IconButton onClick={() => setShowPass(!showPass)} edge="end">
-                  {showPass ? <VisibilityOff /> : <Visibility />}
-                </IconButton>
-              </InputAdornment>
-            ),
-          }}
-        />
-        {form.password && (
-          <Box sx={{ mt: 1, px: 0.5 }}>
-            <Box sx={{ display: 'flex', gap: 1, mb: 0.5 }}>
-              {[1, 2, 3, 4].map((idx) => (
-                <Box
-                  key={idx}
-                  sx={{
-                    height: 4,
-                    flex: 1,
-                    borderRadius: 2,
-                    bgcolor: passwordStrength >= idx ? getPwdColor() : 'grey.300',
-                    transition: 'background-color 0.3s',
-                  }}
-                />
-              ))}
-            </Box>
-            <Typography variant="caption" color={getPwdColor()} fontWeight={600}>
-              Force: {getPwdLabel()}
-            </Typography>
-          </Box>
-        )}
-      </Box>
+      <form className="auth-form" onSubmit={handleSubmit}>
+        <div className="auth-grid-2">
+          <div className="auth-field">
+            <label htmlFor="register-prenom">Prenom</label>
+            <div className="auth-input-wrap">
+              <span className="auth-input-icon"><User size={16} /></span>
+              <input id="register-prenom" name="prenom" value={form.prenom} onChange={handleChange} placeholder="Alice" required />
+            </div>
+          </div>
+          <div className="auth-field">
+            <label htmlFor="register-nom">Nom</label>
+            <input id="register-nom" name="nom" value={form.nom} onChange={handleChange} placeholder="Martin" required />
+          </div>
+        </div>
 
-      <TextField
-        label="Confirmer le mot de passe"
-        name="confirm"
-        type="password"
-        value={form.confirm}
-        onChange={handleChange}
-        required
-        fullWidth
-        error={form.confirm.length > 0 && form.password !== form.confirm}
-        helperText={form.confirm.length > 0 && form.password !== form.confirm ? 'Les mots de passe ne correspondent pas' : ''}
-      />
+        <div className="auth-field">
+          <label htmlFor="register-email">Email</label>
+          <div className="auth-input-wrap">
+            <span className="auth-input-icon"><Mail size={16} /></span>
+            <input
+              id="register-email"
+              name="email"
+              type="email"
+              value={form.email}
+              onChange={handleChange}
+              placeholder="vous@exemple.com"
+              disabled={Boolean(invitationToken)}
+              autoComplete="email"
+              required
+            />
+            <span className="auth-inline-state">
+              {checkingEmail && <CircularProgress size={18} />}
+              {!checkingEmail && emailError && <Cancel color="error" fontSize="small" />}
+              {!checkingEmail && !emailError && form.email && emailRegex.test(form.email) && <CheckCircle color="success" fontSize="small" />}
+            </span>
+          </div>
+          {(emailError || invitationToken) && (
+            <p className={`auth-helper ${emailError ? 'error' : ''}`}>
+              {emailError || 'Adresse imposee par le lien invitation.'}
+            </p>
+          )}
+        </div>
 
-      <Button
-        type="submit"
-        variant="contained"
-        size="large"
-        fullWidth
-        disabled={loading || invitationLoading || checkingEmail || !!emailError || !passwordMeetsPolicy(form.password) || form.password !== form.confirm}
-        sx={{ mt: 1, py: 1.5 }}
-      >
-        {loading ? <CircularProgress size={24} color="inherit" /> : 'Envoyer le code OTP'}
-      </Button>
-    </Box>
+        <div className="auth-field">
+          <label htmlFor="register-password">Mot de passe</label>
+          <div className="auth-input-wrap">
+            <span className="auth-input-icon"><Lock size={16} /></span>
+            <input
+              id="register-password"
+              name="password"
+              type={showPass ? 'text' : 'password'}
+              value={form.password}
+              onChange={handleChange}
+              placeholder="Votre mot de passe"
+              autoComplete="new-password"
+              required
+            />
+            <IconButton className="auth-eye-button" size="small" onClick={() => setShowPass((current) => !current)}>
+              {showPass ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+            </IconButton>
+          </div>
+          {form.password && (
+            <div className="auth-password-meter">
+              <div className="auth-meter-bars">
+                {[1, 2, 3, 4].map((idx) => (
+                  <span key={idx} style={{ background: passwordStrength >= idx ? passwordColor(passwordStrength) : '#e2e8f0' }} />
+                ))}
+              </div>
+              <div className="auth-meter-label" style={{ color: passwordColor(passwordStrength) }}>{getPwdLabel()}</div>
+            </div>
+          )}
+        </div>
+
+        <div className="auth-field">
+          <label htmlFor="register-confirm">Confirmer le mot de passe</label>
+          <div className="auth-input-wrap">
+            <span className="auth-input-icon"><Lock size={16} /></span>
+            <input
+              id="register-confirm"
+              name="confirm"
+              type={showConfirmPass ? 'text' : 'password'}
+              value={form.confirm}
+              onChange={handleChange}
+              placeholder="Confirmez le mot de passe"
+              autoComplete="new-password"
+              required
+            />
+            <IconButton className="auth-eye-button" size="small" onClick={() => setShowConfirmPass((current) => !current)}>
+              {showConfirmPass ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+            </IconButton>
+          </div>
+          {form.confirm.length > 0 && form.password !== form.confirm && (
+            <p className="auth-helper error">Les mots de passe ne correspondent pas.</p>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          className="auth-submit"
+          disabled={loading || invitationLoading || checkingEmail || !!emailError || !passwordMeetsPolicy(form.password) || form.password !== form.confirm}
+        >
+          {loading ? <CircularProgress size={20} color="inherit" /> : 'Creer mon compte'}
+        </button>
+      </form>
+    </>
   );
 
   const renderOtpForm = () => (
-    <Box component="form" onSubmit={handleVerify} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Typography variant="body2" color="text.secondary" textAlign="center">
-        Entrez le code a 6 chiffres envoye a {form.email}.
-      </Typography>
-      <TextField
-        label="Code OTP"
-        value={otp}
-        onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-        required
-        fullWidth
-        autoFocus
-        autoComplete="one-time-code"
-        inputProps={{ inputMode: 'numeric', maxLength: 6 }}
-      />
-      <Button
-        type="submit"
-        variant="contained"
-        size="large"
-        fullWidth
-        disabled={loading || otp.length !== 6}
-        sx={{ py: 1.5 }}
-      >
-        {loading ? <CircularProgress size={24} color="inherit" /> : 'Verifier et creer le compte'}
-      </Button>
-      <Button
+    <form className="auth-form auth-otp-card" onSubmit={handleVerify}>
+      <div className="auth-otp-logo">
+        <img src="/agileflow-icon.png" alt="AgileFlow" className="auth-logo-sm" />
+      </div>
+      <p className="auth-helper" style={{ marginTop: 0 }}>
+        Code envoye a {form.email}
+      </p>
+      <div className="auth-otp-grid">
+        {Array.from({ length: 6 }, (_, index) => (
+          <input
+            key={index}
+            ref={(node) => { otpRefs.current[index] = node; }}
+            value={otp[index] ?? ''}
+            onChange={(e) => handleOtpChange(index, e.target.value)}
+            onKeyDown={(e) => handleOtpKeyDown(index, e)}
+            onPaste={(e) => {
+              e.preventDefault();
+              const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+              setOtp(pasted);
+              otpRefs.current[Math.min(pasted.length, 5)]?.focus();
+            }}
+            inputMode="numeric"
+            maxLength={1}
+            aria-label={`Chiffre OTP ${index + 1}`}
+          />
+        ))}
+      </div>
+      <button type="submit" className="auth-submit" disabled={loading || otp.length !== 6}>
+        {loading ? <CircularProgress size={20} color="inherit" /> : 'Verifier'}
+      </button>
+      <button type="button" className="auth-secondary-action" disabled={resendLoading} onClick={handleResend}>
+        {resendLoading ? <CircularProgress size={18} /> : <Refresh fontSize="small" />} Renvoyer le code
+      </button>
+      <button
         type="button"
-        variant="outlined"
-        fullWidth
-        startIcon={resendLoading ? <CircularProgress size={18} /> : <Refresh />}
-        disabled={resendLoading}
-        onClick={handleResend}
-      >
-        Renvoyer le code
-      </Button>
-      <Button
-        type="button"
-        variant="text"
+        className="auth-secondary-action"
         onClick={() => {
           setOtpSent(false);
           setOtp('');
@@ -366,43 +418,68 @@ const RegisterPage = () => {
         }}
       >
         Modifier l'email
-      </Button>
-    </Box>
+      </button>
+    </form>
   );
 
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', bgcolor: 'grey.100', py: 4 }}>
-      <Paper elevation={4} sx={{ p: 5, width: '100%', maxWidth: 460, borderRadius: 3 }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
-          <Box sx={{ bgcolor: otpSent ? 'success.main' : 'secondary.main', borderRadius: '50%', p: 1.5, mb: 2 }}>
-            {otpSent ? <MarkEmailReadOutlined sx={{ color: 'white' }} /> : <PersonAddOutlined sx={{ color: 'white' }} />}
-          </Box>
-          <Typography variant="h5" fontWeight={700}>
-            {otpSent ? 'Verifier votre email' : 'Creer un compte'}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" mt={0.5}>
-            {otpSent ? 'Validation par code OTP' : 'Rejoignez la plateforme AgileFlow'}
-          </Typography>
-        </Box>
+    <main className="auth-shell auth-register">
+      <section className="auth-panel-light">
+        <div className="auth-card auth-card-wide">
+          <Link className="auth-home-link" to="/">Retour a l'accueil</Link>
+          <div className="auth-card-header">
+            <h2>{otpSent ? 'Verifiez votre email' : 'Creer un compte'}</h2>
+            <p>
+              {otpSent ? 'Validation par code OTP' : (
+                <>Deja inscrit ? <Link to="/login">Se connecter</Link></>
+              )}
+            </p>
+          </div>
 
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        {invitationProjectName && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            Vous rejoignez le projet {invitationProjectName}.
-          </Alert>
-        )}
-        {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          {invitationProjectName && <Alert severity="info" sx={{ mb: 2 }}>Vous rejoignez le projet {invitationProjectName}.</Alert>}
+          {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
-        {otpSent ? renderOtpForm() : renderRegisterForm()}
+          {otpSent ? renderOtpForm() : renderRegisterForm()}
 
-        <Typography variant="body2" align="center" sx={{ mt: 3 }}>
-          Vous avez deja un compte ?{' '}
-          <Link to="/login" style={{ color: '#1976d2', textDecoration: 'none', fontWeight: 600 }}>
-            Se connecter
-          </Link>
-        </Typography>
-      </Paper>
-    </Box>
+          {!otpSent && (
+            <div className="auth-footer-link">
+              Vous avez deja un compte ? <Link className="auth-link" to="/login">Se connecter</Link>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="auth-panel-dark">
+        <div className="auth-dark-content">
+          <div className="auth-brand-block">
+            <img src="/agileflow-icon.png" alt="AgileFlow" className="auth-logo" />
+          </div>
+
+          <h2>Lancez votre espace AgileFlow</h2>
+          <p>Creer un compte, configurer un projet, inviter l'equipe et livrer avec un workflow clair.</p>
+
+          <div className="auth-steps">
+            {[
+              { label: 'Creer un compte', icon: CheckCircle2, active: true },
+              { label: 'Creer votre premier projet', icon: ArrowRight },
+              { label: 'Inviter votre equipe', icon: Users },
+              { label: 'Commencer a collaborer', icon: ArrowRight },
+            ].map((step, index) => {
+              const Icon = step.icon;
+              return (
+                <div key={step.label} className={`auth-step ${step.active ? 'active' : ''}`}>
+                  <span className="auth-step-marker">{step.active ? <Icon size={16} /> : index + 1}</span>
+                  <span>{step.label}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          
+        </div>
+      </section>
+    </main>
   );
 };
 

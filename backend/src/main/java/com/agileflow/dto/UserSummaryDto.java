@@ -6,6 +6,7 @@ public record UserSummaryDto(
         String prenom,
         String email,
         String initiales,
-        String avatarColor
+        String avatarColor,
+        String avatarUrl
 ) {
 }

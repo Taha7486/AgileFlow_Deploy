@@ -274,6 +274,7 @@ public class AuthService {
         }
 
         String normalizedEmail = normalizeEmail(email);
+        String avatarUrl = extractOAuthAvatar(oauthUser);
         User user = userRepository.findByEmail(normalizedEmail).orElseGet(() -> {
             String fullName = firstNonBlank(
                     attribute(oauthUser, "name"),
@@ -300,6 +301,7 @@ public class AuthService {
                     .actif(true)
                     .emailVerified(true)
                     .dateCreation(LocalDateTime.now())
+                    .avatarUrl(avatarUrl)
                     .build();
         });
 
@@ -308,6 +310,9 @@ public class AuthService {
         }
         if (isBlank(user.getNom())) {
             user.setNom(firstNonBlank(attribute(oauthUser, "family_name"), lastNameFrom(attribute(oauthUser, "name")), capitalize(normalizedProvider)));
+        }
+        if (!isBlank(avatarUrl)) {
+            user.setAvatarUrl(avatarUrl);
         }
         user.setActif(true);
         user.setEmailVerified(true);
@@ -403,6 +408,10 @@ public class AuthService {
         return value == null ? null : value.toString();
     }
 
+    private String extractOAuthAvatar(OAuth2User oauthUser) {
+        return firstNonBlank(attribute(oauthUser, "picture"), attribute(oauthUser, "avatar_url"));
+    }
+
     private String firstNameFrom(String fullName) {
         if (isBlank(fullName)) {
             return null;
@@ -453,7 +462,8 @@ public class AuthService {
                 user.getEmail(),
                 user.getRole().name(),
                 user.getPrenom(),
-                user.getNom()
+                user.getNom(),
+                user.getAvatarUrl()
         );
     }
 
@@ -474,6 +484,7 @@ public class AuthService {
             String email,
             String role,
             String prenom,
-            String nom
+            String nom,
+            String avatarUrl
     ) {}
 }

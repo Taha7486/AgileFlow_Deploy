@@ -36,6 +36,7 @@ public class CommentService {
     private final TeamMemberRepository teamMemberRepository;
     private final MentionParser mentionParser;
     private final MentionNotificationService mentionNotificationService;
+    private final ProjectAccessService projectAccessService;
 
     private User currentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -43,17 +44,8 @@ public class CommentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur courant introuvable"));
     }
 
-    private boolean isAdmin(User user) {
-        return user.getRole() == User.Role.ROLE_ADMIN;
-    }
-
     private boolean canViewProject(User actor, Project project) {
-        return project != null && (
-                isAdmin(actor)
-                        || actor.getRole() == User.Role.ROLE_DEVELOPER
-                        || (project.getManager() != null
-                        && project.getManager().getId().equals(actor.getId()))
-        );
+        return project != null && projectAccessService.hasProjectAccess(actor, project);
     }
 
     private Task getTaskOrThrow(Long taskId) {
@@ -62,6 +54,12 @@ public class CommentService {
     }
 
     private Project resolveProject(Task task) {
+        if (task.getProject() != null) {
+            return task.getProject();
+        }
+        if (task.getParentTask() != null) {
+            return resolveProject(task.getParentTask());
+        }
         if (task.getSprint() != null) {
             return task.getSprint().getProject();
         }

@@ -3,7 +3,7 @@ import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Grid, Pa
 import {
   AccountTree,
   Assignment,
-  Group,
+  Notifications,
   People,
   Task,
 } from '@mui/icons-material';
@@ -130,7 +130,7 @@ const AdminPage = () => {
               <StatCard title="Taches" value={data.totalTasks} icon={<Task sx={{ fontSize: 40 }} />} />
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
-              <StatCard title="Equipes" value={data.totalTeams} icon={<Group sx={{ fontSize: 40 }} />} />
+              <StatCard title="Notifications" value={data.totalNotifications} icon={<Notifications sx={{ fontSize: 40 }} />} />
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
               <StatCard title="Diagrammes" value={data.totalDiagrams} icon={<AccountTree sx={{ fontSize: 40 }} />} />

@@ -353,7 +353,7 @@ public class TimelineService {
 
     private UserSummaryDto toUserSummary(User user) {
         if (user == null) return null;
-        return new UserSummaryDto(user.getId(), user.getNom(), user.getPrenom(), user.getEmail(), initials(user), avatarColor(user.getEmail()));
+        return new UserSummaryDto(user.getId(), user.getNom(), user.getPrenom(), user.getEmail(), initials(user), avatarColor(user.getEmail()), user.getAvatarUrl());
     }
 
     private LocalDateTime parseDateTime(String value) {

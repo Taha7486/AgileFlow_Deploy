@@ -52,6 +52,12 @@ public class ProjectController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ProjectDTO restoreProject(@PathVariable Long id) {
+        return projectService.restoreProject(id);
+    }
+
     @GetMapping("/{id}/members")
     @PreAuthorize("isAuthenticated()")
     public List<ProjectMemberDTO> listMembers(@PathVariable Long id) {

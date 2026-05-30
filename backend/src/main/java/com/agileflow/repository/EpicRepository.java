@@ -9,6 +9,8 @@ import java.util.List;
 
 public interface EpicRepository extends JpaRepository<Epic, Long> {
 
+    void deleteByProject_Id(Long projectId);
+
     @Query("""
             SELECT e FROM Epic e
             WHERE e.project.id = :projectId

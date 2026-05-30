@@ -33,6 +33,11 @@ export const deleteProject = async (id: number) => {
   await axiosInstance.delete(`/projects/${id}`);
 };
 
+export const restoreProject = async (id: number) => {
+  const { data } = await axiosInstance.post<ProjectListItem>(`/projects/${id}/restore`);
+  return data;
+};
+
 export const fetchProjectMembers = async (projectId: number) => {
   const { data } = await axiosInstance.get<ProjectMember[]>(`/projects/${projectId}/members`);
   return data;

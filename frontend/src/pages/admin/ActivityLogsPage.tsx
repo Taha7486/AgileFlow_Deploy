@@ -23,8 +23,8 @@ import { fr } from 'date-fns/locale';
 import { useAuth } from '../../context/AuthContext';
 import { fetchActivityLogs, type ActivityLog, type ActivityLogFilters, type ActivityLogsPage as ActivityLogsPageData } from '../../api/adminApi';
 import { fetchUsers } from '../../api/usersApi';
-import { useActiveProject } from '../../hooks/useActiveProject';
-import type { UserListItem } from '../../types';
+import { fetchProjects } from '../../api/projectsApi';
+import type { ProjectListItem, UserListItem } from '../../types';
 
 const ACTIONS = [
   'PROJECT_CREATED',
@@ -64,9 +64,9 @@ const groupKey = (log: ActivityLog, groupBy: string) => {
 
 const ActivityLogsPage = () => {
   const { user } = useAuth();
-  const { activeProject } = useActiveProject();
   const [logsPage, setLogsPage] = useState<ActivityLogsPageData | null>(null);
   const [users, setUsers] = useState<UserListItem[]>([]);
+  const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [filters, setFilters] = useState<ActivityLogFilters>({});
   const [groupBy, setGroupBy] = useState('DATE');
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
@@ -75,10 +75,12 @@ const ActivityLogsPage = () => {
 
   const loadLookups = useCallback(async () => {
     try {
-      const userRows = await fetchUsers();
+      const [userRows, projectRows] = await Promise.all([fetchUsers(), fetchProjects()]);
       setUsers(userRows);
+      setProjects(projectRows);
     } catch {
       setUsers([]);
+      setProjects([]);
     }
   }, []);
 
@@ -86,17 +88,14 @@ const ActivityLogsPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchActivityLogs(page, 20, {
-        ...nextFilters,
-        projectId: activeProject?.id ?? undefined,
-      });
+      const data = await fetchActivityLogs(page, 20, nextFilters);
       setLogsPage(data);
     } catch {
       setError("Impossible de charger les journaux d'activite.");
     } finally {
       setLoading(false);
     }
-  }, [activeProject?.id]);
+  }, []);
 
   useEffect(() => {
     if (user?.role !== 'ROLE_ADMIN') {
@@ -147,7 +146,7 @@ const ActivityLogsPage = () => {
             Activity Logs
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Historique filtre et groupe des actions importantes{activeProject ? ` pour ${activeProject.name}.` : '.'}
+            Historique filtre et groupe des actions importantes.
           </Typography>
         </Box>
         <Button startIcon={<Refresh />} onClick={() => loadLogs(currentPage, filters)} disabled={loading}>
@@ -165,6 +164,13 @@ const ActivityLogsPage = () => {
             sx={{ minWidth: { xl: 260 }, flex: 1 }}
             InputProps={{ startAdornment: <Search fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} /> }}
           />
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel id="log-project-label">Projet</InputLabel>
+            <Select labelId="log-project-label" label="Projet" value={filters.projectId ?? ''} onChange={(e) => updateFilter('projectId', e.target.value as number | '')}>
+              <MenuItem value="">Tous les projets</MenuItem>
+              {projects.map((project) => <MenuItem key={project.id} value={project.id}>{project.name}</MenuItem>)}
+            </Select>
+          </FormControl>
           <FormControl size="small" sx={{ minWidth: 170 }}>
             <InputLabel id="log-user-label">Acteur</InputLabel>
             <Select labelId="log-user-label" label="Acteur" value={filters.actorId ?? ''} onChange={(e) => updateFilter('actorId', e.target.value as number | '')}>

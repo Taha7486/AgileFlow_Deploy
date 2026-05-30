@@ -17,10 +17,11 @@ import {
 import { Add } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { createProject, deleteProject, fetchProjects, updateProject } from '../../api/projectsApi';
+import { createProject, deleteProject, fetchProjects, inviteProjectMember, updateProject } from '../../api/projectsApi';
 import { fetchTeams } from '../../api/teamsApi';
+import { connectGitHub } from '../../api/github';
 import type { CreateProjectPayload, ProjectListItem, TeamListItem } from '../../types';
-import CreateProjectModal from '../../components/projects/CreateProjectModal';
+import CreateProjectModal, { type ProjectCreationOptions } from '../../components/projects/CreateProjectModal';
 import ProjectCard from '../../components/projects/ProjectCard';
 
 const ProjectsListPage = () => {
@@ -37,6 +38,7 @@ const ProjectsListPage = () => {
   const [editTarget, setEditTarget] = useState<ProjectListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProjectListItem | null>(null);
   const [snack, setSnack] = useState<{ msg: string; sev: 'success' | 'error' } | null>(null);
+  const isAdmin = current?.role === 'ROLE_ADMIN';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -66,16 +68,23 @@ const ProjectsListPage = () => {
   }, [rows, search]);
 
   const canEditProject = (project: ProjectListItem) =>
-    current?.role === 'ROLE_ADMIN' || project.owner;
+    isAdmin || project.owner;
 
-  const handleSave = async (payload: CreateProjectPayload) => {
+  const handleSave = async (payload: CreateProjectPayload, options?: ProjectCreationOptions) => {
+    if (isAdmin && !editTarget) return;
     setSaving(true);
     try {
       if (editTarget) {
         await updateProject(editTarget.id, payload);
         setSnack({ msg: 'Projet mis a jour.', sev: 'success' });
       } else {
-        await createProject(payload);
+        const saved = await createProject(payload);
+        if (options?.invitedEmails.length) {
+          await Promise.all(options.invitedEmails.map((email) => inviteProjectMember(saved.id, { email })));
+        }
+        if (options?.githubConnection) {
+          await connectGitHub(saved.id, options.githubConnection);
+        }
         setSnack({ msg: 'Projet cree. Vous en etes le proprietaire.', sev: 'success' });
       }
       setDialogOpen(false);
@@ -95,7 +104,7 @@ const ProjectsListPage = () => {
     if (!deleteTarget) return;
     try {
       await deleteProject(deleteTarget.id);
-      setSnack({ msg: 'Projet supprime.', sev: 'success' });
+      setSnack({ msg: 'Projet archive. Il ne sera plus accessible.', sev: 'success' });
       setDeleteTarget(null);
       await load();
     } catch (errorValue: unknown) {
@@ -112,7 +121,7 @@ const ProjectsListPage = () => {
         <Box>
           <Typography variant="h5" fontWeight={700}>Projets</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Creez un projet, devenez proprietaire et invitez votre equipe.
+            Consultez les projets et leurs informations.
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -123,9 +132,11 @@ const ProjectsListPage = () => {
             onChange={(event) => setSearch(event.target.value)}
             sx={{ minWidth: 280 }}
           />
-          <Button variant="contained" startIcon={<Add />} onClick={() => { setEditTarget(null); setDialogOpen(true); }}>
-            Nouveau projet
-          </Button>
+          {!isAdmin && (
+            <Button variant="contained" startIcon={<Add />} onClick={() => { setEditTarget(null); setDialogOpen(true); }}>
+              Nouveau projet
+            </Button>
+          )}
         </Box>
       </Box>
 
@@ -134,7 +145,7 @@ const ProjectsListPage = () => {
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
       ) : filtered.length === 0 ? (
-        <Alert severity="info">Aucun projet a afficher. Creez votre premier projet pour commencer.</Alert>
+        <Alert severity="info">{isAdmin ? 'Aucun projet a afficher.' : 'Aucun projet a afficher. Creez votre premier projet pour commencer.'}</Alert>
       ) : (
         <Grid container spacing={2.5}>
           {filtered.map((project) => (
@@ -150,7 +161,7 @@ const ProjectsListPage = () => {
                             Modifier
                           </Button>
                           <Button size="small" color="error" onClick={() => setDeleteTarget(project)}>
-                            Supprimer
+                            {isAdmin ? 'Archiver' : 'Supprimer'}
                           </Button>
                         </>
                       )}
@@ -176,10 +187,10 @@ const ProjectsListPage = () => {
       />
 
       <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)}>
-        <DialogTitle>Supprimer ce projet ?</DialogTitle>
+        <DialogTitle>{isAdmin ? 'Archiver ce projet ?' : 'Supprimer ce projet ?'}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Cette action supprimera definitivement le projet {deleteTarget ? `"${deleteTarget.name}"` : ''}.
+            Cette action archivera le projet {deleteTarget ? `"${deleteTarget.name}"` : ''}. Il disparaitra de vos espaces et ne sera plus accessible.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

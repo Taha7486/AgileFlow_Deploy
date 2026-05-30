@@ -31,6 +31,7 @@ import TaskTypeIcon from '../../components/planning/TaskTypeIcon';
 import CreateSubtaskModal from '../../components/planning/CreateSubtaskModal';
 import GitHubTaskDetail from '../../components/github/GitHubTaskDetail';
 import { formatIssueKey } from '../../utils/issueKey';
+import { resolvePresenceDisplay, usePresenceStore } from '../../store/presenceStore';
 
 interface Props {
   taskId: number;
@@ -50,6 +51,7 @@ const findTaskById = (tasks: PlanningTask[], id: number): PlanningTask | null =>
 
 const PlanningTaskDetail = ({ taskId, onClose }: Props) => {
   const { groups, inlineEditTask, addSubtaskToParent } = usePlanningStore();
+  const getPresence = usePresenceStore((state) => state.getPresence);
   const activeProject = useActiveProjectStore((state) => state.activeProject);
   const task = useMemo(() => {
     for (const group of groups) {
@@ -62,12 +64,23 @@ const PlanningTaskDetail = ({ taskId, onClose }: Props) => {
   const [comment, setComment] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [draftStatut, setDraftStatut] = useState<TaskStatut>('TODO');
+  const [draftPriorite, setDraftPriorite] = useState<TaskPriorite>('MEDIUM');
+  const [draftUrgent, setDraftUrgent] = useState(false);
+  const [draftAssigneeId, setDraftAssigneeId] = useState<string>('');
+  const [draftDateEcheance, setDraftDateEcheance] = useState('');
+  const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState<UserListItem[]>([]);
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
   useEffect(() => {
     setTitle(task?.titre ?? '');
     setDescription(task?.description ?? '');
+    setDraftStatut(task?.statut ?? 'TODO');
+    setDraftPriorite(task?.priorite ?? 'MEDIUM');
+    setDraftUrgent(Boolean(task?.isUrgent));
+    setDraftAssigneeId(task?.assignee?.id ? String(task.assignee.id) : '');
+    setDraftDateEcheance(task?.dateEcheance ? task.dateEcheance.slice(0, 10) : '');
   }, [task]);
 
   useEffect(() => {
@@ -101,11 +114,37 @@ const PlanningTaskDetail = ({ taskId, onClose }: Props) => {
     setComment('');
   };
 
-  const selectedAssignee = users.find((user) => user.id === task?.assignee?.id) ?? null;
-  const saveDescription = () => {
-    const next = description.trim();
-    if ((next || task?.description) && next !== (task?.description ?? '')) {
-      void inlineEditTask(taskId, 'description', next);
+  const selectedAssignee = users.find((user) => String(user.id) === draftAssigneeId) ?? null;
+  const reporterPresence = resolvePresenceDisplay(task?.reporter ? getPresence(task.reporter.id) : undefined);
+
+  const hasDraftChanges = task ? (
+    title.trim() !== task.titre
+    || description.trim() !== (task.description ?? '')
+    || draftStatut !== task.statut
+    || draftPriorite !== task.priorite
+    || draftUrgent !== task.isUrgent
+    || draftAssigneeId !== (task.assignee?.id ? String(task.assignee.id) : '')
+    || draftDateEcheance !== (task.dateEcheance ? task.dateEcheance.slice(0, 10) : '')
+  ) : false;
+
+  const handleSave = async () => {
+    if (!task || !title.trim()) return;
+    setSaving(true);
+    try {
+      const updates: Array<[string, string]> = [];
+      if (title.trim() !== task.titre) updates.push(['titre', title.trim()]);
+      if (description.trim() !== (task.description ?? '')) updates.push(['description', description.trim()]);
+      if (draftStatut !== task.statut) updates.push(['statut', draftStatut]);
+      if (draftPriorite !== task.priorite) updates.push(['priorite', draftPriorite]);
+      if (draftUrgent !== task.isUrgent) updates.push(['isUrgent', String(draftUrgent)]);
+      if (draftAssigneeId !== (task.assignee?.id ? String(task.assignee.id) : '')) updates.push(['assigneeId', draftAssigneeId]);
+      if (draftDateEcheance !== (task.dateEcheance ? task.dateEcheance.slice(0, 10) : '')) updates.push(['dateEcheance', draftDateEcheance]);
+
+      for (const [field, value] of updates) {
+        await inlineEditTask(task.id, field, value);
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -138,8 +177,8 @@ const PlanningTaskDetail = ({ taskId, onClose }: Props) => {
             select
             size="small"
             label="Statut"
-            value={task.statut}
-            onChange={(event) => void inlineEditTask(task.id, 'statut', event.target.value)}
+            value={draftStatut}
+            onChange={(event) => setDraftStatut(event.target.value as TaskStatut)}
             sx={{ minWidth: 135 }}
           >
             {(Object.keys(STATUT_CONFIG) as TaskStatut[]).map((status) => (
@@ -150,8 +189,8 @@ const PlanningTaskDetail = ({ taskId, onClose }: Props) => {
             select
             size="small"
             label="Priorite"
-            value={task.priorite}
-            onChange={(event) => void inlineEditTask(task.id, 'priorite', event.target.value)}
+            value={draftPriorite}
+            onChange={(event) => setDraftPriorite(event.target.value as TaskPriorite)}
             sx={{ minWidth: 135 }}
           >
             {(Object.keys(PRIORITE_CONFIG) as TaskPriorite[]).map((priority) => (
@@ -161,9 +200,9 @@ const PlanningTaskDetail = ({ taskId, onClose }: Props) => {
           <FormControlLabel
             control={
               <Switch
-                checked={task.isUrgent}
-                disabled={task.statut === 'DONE'}
-                onChange={(event) => void inlineEditTask(task.id, 'isUrgent', String(event.target.checked))}
+                checked={draftUrgent}
+                disabled={draftStatut === 'DONE'}
+                onChange={(event) => setDraftUrgent(event.target.checked)}
               />
             }
             label="Urgent"
@@ -177,7 +216,6 @@ const PlanningTaskDetail = ({ taskId, onClose }: Props) => {
           label="Titre"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          onBlur={() => title.trim() && title !== task.titre && void inlineEditTask(task.id, 'titre', title.trim())}
           sx={{ mb: 2 }}
         />
         <TextField
@@ -188,7 +226,6 @@ const PlanningTaskDetail = ({ taskId, onClose }: Props) => {
           placeholder="Ajouter une description..."
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          onBlur={saveDescription}
           sx={{ mb: 2 }}
         />
 
@@ -208,14 +245,22 @@ const PlanningTaskDetail = ({ taskId, onClose }: Props) => {
             value={selectedAssignee}
             getOptionLabel={(user) => `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email}
             isOptionEqualToValue={(option, value) => option.id === value.id}
-            onChange={(_, user) => void inlineEditTask(task.id, 'assigneeId', user ? String(user.id) : '')}
+            onChange={(_, user) => setDraftAssigneeId(user ? String(user.id) : '')}
+            renderOption={(props, user) => (
+              <Box component="li" {...props} key={user.id}>
+                <Avatar src={user.avatarUrl ?? undefined} sx={{ width: 28, height: 28, mr: 1, fontSize: 12 }}>
+                  {`${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase() || user.email[0]?.toUpperCase()}
+                </Avatar>
+                {`${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email}
+              </Box>
+            )}
             renderInput={(params) => <TextField {...params} label="Assigne" placeholder="Non assigne" />}
           />
           <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
             <Typography color="text.secondary">Assignee par</Typography>
             {task.reporter ? (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Avatar sx={{ width: 24, height: 24, bgcolor: task.reporter.avatarColor, fontSize: 11 }}>{task.reporter.initiales}</Avatar>
+                <Avatar src={task.reporter.avatarUrl ?? undefined} sx={{ width: 24, height: 24, bgcolor: task.reporter.avatarColor, fontSize: 11, border: reporterPresence === 'LIVE' ? '2px solid #44b700' : undefined }}>{task.reporter.initiales}</Avatar>
                 <Typography>{userFullName(task.reporter)}</Typography>
               </Box>
             ) : (
@@ -226,8 +271,8 @@ const PlanningTaskDetail = ({ taskId, onClose }: Props) => {
             size="small"
             label="Echeance"
             type="date"
-            value={task.dateEcheance ? task.dateEcheance.slice(0, 10) : ''}
-            onChange={(event) => void inlineEditTask(task.id, 'dateEcheance', event.target.value)}
+            value={draftDateEcheance}
+            onChange={(event) => setDraftDateEcheance(event.target.value)}
             InputLabelProps={{ shrink: true }}
           />
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}><Typography color="text.secondary">Date echeance</Typography><Typography>{formatDateFR(task.dateEcheance)}</Typography></Box>
@@ -307,7 +352,7 @@ const PlanningTaskDetail = ({ taskId, onClose }: Props) => {
           />
           {comments.map((item) => (
             <Box key={item.id} sx={{ display: 'flex', gap: 1 }}>
-              <Avatar sx={{ width: 28, height: 28 }}>{item.auteur?.firstName?.[0] ?? item.auteur?.email?.[0] ?? '?'}</Avatar>
+              <Avatar src={item.auteur?.avatarUrl ?? undefined} sx={{ width: 28, height: 28 }}>{item.auteur?.firstName?.[0] ?? item.auteur?.email?.[0] ?? '?'}</Avatar>
               <Box>
                 <Typography variant="body2" fontWeight={700}>{item.auteur?.firstName} {item.auteur?.lastName}</Typography>
                 <Typography variant="body2">{item.contenu}</Typography>
@@ -327,6 +372,17 @@ const PlanningTaskDetail = ({ taskId, onClose }: Props) => {
           }}
         />
       )}
+      <Divider />
+      <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end', gap: 1, bgcolor: 'background.paper' }}>
+        <Button onClick={onClose} disabled={saving}>Annuler</Button>
+        <Button
+          variant="contained"
+          onClick={() => void handleSave()}
+          disabled={saving || !title.trim() || !hasDraftChanges}
+        >
+          {saving ? 'Enregistrement...' : 'Enregistrer'}
+        </Button>
+      </Box>
     </Box>
   );
 };

@@ -1016,6 +1016,7 @@ public class GitHubService {
         notificationRepository.save(Notification.builder()
                 .user(task.getAssignedTo())
                 .message(message)
+                .targetUrl("/development")
                 .build());
     }
 

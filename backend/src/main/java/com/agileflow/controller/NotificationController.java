@@ -60,6 +60,7 @@ public class NotificationController {
         return new NotificationDTO(
                 notification.getId(),
                 notification.getMessage(),
+                notification.getTargetUrl(),
                 notification.isLu(),
                 notification.getDateCreation()
         );

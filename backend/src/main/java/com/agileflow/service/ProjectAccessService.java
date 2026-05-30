@@ -56,12 +56,21 @@ public class ProjectAccessService {
         if (isPlatformAdmin(user)) {
             return true;
         }
+        if (project.getStatut() == Project.Statut.ARCHIVE) {
+            return false;
+        }
         return isProjectOwner(user, project) || isProjectMember(user, project.getId());
     }
 
     @Transactional(readOnly = true)
     public boolean canManageProject(User user, Project project) {
-        if (isPlatformAdmin(user) || isProjectOwner(user, project)) {
+        if (isPlatformAdmin(user)) {
+            return true;
+        }
+        if (project.getStatut() == Project.Statut.ARCHIVE) {
+            return false;
+        }
+        if (isProjectOwner(user, project)) {
             return true;
         }
         return projectMemberRepository.findByProject_IdAndUser_Id(project.getId(), user.getId())
@@ -89,6 +98,9 @@ public class ProjectAccessService {
 
     public void assertProjectAccess(User user, Project project) {
         if (!hasProjectAccess(user, project)) {
+            if (!isPlatformAdmin(user) && project.getStatut() == Project.Statut.ARCHIVE) {
+                throw new ForbiddenOperationException("Ce projet est archive et n'est plus accessible.");
+            }
             throw new ForbiddenOperationException("Vous n'avez pas acces a ce projet.");
         }
     }

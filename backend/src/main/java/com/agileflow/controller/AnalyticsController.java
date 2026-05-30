@@ -24,19 +24,21 @@ public class AnalyticsController {
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public AnalyticsDTO getAnalytics(
-            @RequestParam(defaultValue = "WEEK") AnalyticsPeriod period,
-            @RequestParam(required = false) Long sprintId
+            @RequestParam(defaultValue = "YEAR") AnalyticsPeriod period,
+            @RequestParam(required = false) Long sprintId,
+            @RequestParam(required = false) Long projectId
     ) {
-        return analyticsService.getAnalytics(period, sprintId);
+        return analyticsService.getAnalytics(period, sprintId, projectId);
     }
 
     @GetMapping(value = "/export.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<byte[]> exportPdf(
-            @RequestParam(defaultValue = "WEEK") AnalyticsPeriod period,
-            @RequestParam(required = false) Long sprintId
+            @RequestParam(defaultValue = "YEAR") AnalyticsPeriod period,
+            @RequestParam(required = false) Long sprintId,
+            @RequestParam(required = false) Long projectId
     ) {
-        byte[] pdf = analyticsService.exportAnalyticsPdf(period, sprintId);
+        byte[] pdf = analyticsService.exportAnalyticsPdf(period, sprintId, projectId);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
                 .header(HttpHeaders.CONTENT_DISPOSITION,

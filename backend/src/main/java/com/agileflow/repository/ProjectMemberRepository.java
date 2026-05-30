@@ -23,6 +23,8 @@ public interface ProjectMemberRepository extends JpaRepository<ProjectMember, Lo
 
     void deleteByProject_IdAndUser_Id(Long projectId, Long userId);
 
+    void deleteByProject_Id(Long projectId);
+
     long countByProject_Id(Long projectId);
 
     @Query("""

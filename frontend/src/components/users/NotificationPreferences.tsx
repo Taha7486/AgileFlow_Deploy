@@ -1,31 +1,24 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
   CircularProgress,
-  FormControl,
   FormControlLabel,
   Grid,
-  InputLabel,
-  MenuItem,
   Paper,
-  Select,
   Switch,
   Typography,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import {
-  fetchEmailPreview,
   fetchMyEmailPreferences,
   updateMyEmailPreferences,
 } from '../../api/emailPreferencesApi';
 import type {
   EmailNotificationType,
   EmailPreferences,
-  EmailPreview,
   UpdateEmailPreferencesPayload,
 } from '../../types';
-import EmailPreviewCard from './EmailPreviewCard';
 import { useAuth } from '../../context/AuthContext';
 
 type PreferenceKey = keyof Omit<EmailPreferences, 'userId'>;
@@ -50,8 +43,6 @@ const NotificationPreferences = ({
   const navigate = useNavigate();
   const { logout } = useAuth();
   const [preferences, setPreferences] = useState<EmailPreferences | null>(null);
-  const [preview, setPreview] = useState<EmailPreview | null>(null);
-  const [selectedPreview, setSelectedPreview] = useState<EmailNotificationType>('TASK_ASSIGNED');
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<PreferenceKey | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +50,7 @@ const NotificationPreferences = ({
   const handleSessionError = (status?: number) => {
     if (status === 401 || status === 403 || status === 404) {
       logout();
-      navigate('/login', { replace: true });
+      navigate('/', { replace: true });
       return true;
     }
     return false;
@@ -70,12 +61,8 @@ const NotificationPreferences = ({
       setLoading(true);
       setError(null);
       try {
-        const [prefs, previewData] = await Promise.all([
-          fetchMyEmailPreferences(),
-          fetchEmailPreview('TASK_ASSIGNED'),
-        ]);
+        const prefs = await fetchMyEmailPreferences();
         setPreferences(prefs);
-        setPreview(previewData);
       } catch (err: unknown) {
         const status = err && typeof err === 'object' && 'response' in err
           ? (err as { response?: { status?: number } }).response?.status
@@ -90,31 +77,6 @@ const NotificationPreferences = ({
     };
     load();
   }, []);
-
-  useEffect(() => {
-    const loadPreview = async () => {
-      try {
-        const data = await fetchEmailPreview(selectedPreview);
-        setPreview(data);
-      } catch (err: unknown) {
-        const status = err && typeof err === 'object' && 'response' in err
-          ? (err as { response?: { status?: number } }).response?.status
-          : undefined;
-        if (handleSessionError(status)) {
-          return;
-        }
-        setError('Impossible de charger l apercu email.');
-      }
-    };
-    if (!loading) {
-      loadPreview();
-    }
-  }, [selectedPreview, loading]);
-
-  const labels = useMemo(
-    () => new Map(OPTIONS.map((option) => [option.type, option.label])),
-    []
-  );
 
   const handleToggle = async (key: PreferenceKey, checked: boolean) => {
     const payload: UpdateEmailPreferencesPayload = { [key]: checked };
@@ -155,7 +117,7 @@ const NotificationPreferences = ({
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12}>
           {OPTIONS.map((option) => (
             <Box key={option.type} sx={{ py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
               <FormControlLabel
@@ -173,24 +135,6 @@ const NotificationPreferences = ({
               </Typography>
             </Box>
           ))}
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-            <InputLabel id="preview-type-label">Type d email</InputLabel>
-            <Select
-              labelId="preview-type-label"
-              label="Type d email"
-              value={selectedPreview}
-              onChange={(e) => setSelectedPreview(e.target.value as EmailNotificationType)}
-            >
-              {OPTIONS.map((option) => (
-                <MenuItem key={option.type} value={option.type}>
-                  {labels.get(option.type)}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <EmailPreviewCard preview={preview} />
         </Grid>
       </Grid>
     </>

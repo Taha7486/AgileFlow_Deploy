@@ -1,5 +1,5 @@
 import { List, ListItem, ListItemAvatar, Avatar, ListItemText, ListItemButton, Badge, Typography, Divider, Box } from '@mui/material';
-import { Business, Person } from '@mui/icons-material';
+import { Business } from '@mui/icons-material';
 import PresenceIndicator from './PresenceIndicator';
 import { ChannelType } from '../../types';
 import type { PresenceDisplay } from '../../store/presenceStore';
@@ -29,14 +29,6 @@ const ConversationList = ({
   onSelectConversation,
   onContactsChanged,
 }: ConversationListProps) => {
-  const getIcon = (type: ChannelType) => {
-    switch (type) {
-      case 'PROJECT': return <Business />;
-      case 'PRIVATE': return <Person />;
-      default: return <Business />;
-    }
-  };
-
   const privateConversations = conversations.filter((c) => c.type === 'PRIVATE');
 
   return (
@@ -57,8 +49,8 @@ const ConversationList = ({
             }}
           >
             <ListItemAvatar>
-              <Avatar sx={{ bgcolor: activeConversationId === conv.id ? 'primary.main' : 'grey.300' }}>
-                {getIcon(conv.type)}
+              <Avatar src={conv.avatar ?? undefined} sx={{ bgcolor: activeConversationId === conv.id ? 'primary.main' : 'grey.300' }}>
+                {conv.avatar ? null : <Business />}
               </Avatar>
             </ListItemAvatar>
             <ListItemText
@@ -102,7 +94,7 @@ const ConversationList = ({
               <ListItemAvatar>
                 <PresenceIndicator presence={conv.presence ?? 'OFFLINE'} size="small">
                   <Avatar src={conv.avatar || undefined}>
-                    {conv.name.charAt(0)}
+                    {conv.avatar ? null : conv.name.charAt(0)}
                   </Avatar>
                 </PresenceIndicator>
               </ListItemAvatar>

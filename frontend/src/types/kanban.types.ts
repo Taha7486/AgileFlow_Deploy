@@ -9,6 +9,7 @@ export interface KanbanUser {
   email: string;
   initiales: string;
   avatarColor: string;
+  avatarUrl?: string | null;
 }
 
 export interface KanbanSprint { id: number; nom: string; statut: string; }

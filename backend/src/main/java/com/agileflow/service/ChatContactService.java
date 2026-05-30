@@ -65,6 +65,7 @@ public class ChatContactService {
                     user.getPrenom(),
                     user.getNom(),
                     user.getRole().name(),
+                    user.getAvatarUrl(),
                     resolveRelationshipStatus(currentUserId, user.getId())
             ));
         }
@@ -216,6 +217,7 @@ public class ChatContactService {
                 other.getPrenom(),
                 other.getNom(),
                 other.getRole().name(),
+                other.getAvatarUrl(),
                 invitation.getId()
         );
     }
@@ -229,10 +231,12 @@ public class ChatContactService {
                 requester.getPrenom(),
                 requester.getNom(),
                 requester.getEmail(),
+                requester.getAvatarUrl(),
                 recipient.getId(),
                 recipient.getPrenom(),
                 recipient.getNom(),
                 recipient.getEmail(),
+                recipient.getAvatarUrl(),
                 invitation.getStatus(),
                 invitation.getCreatedAt(),
                 invitation.getRespondedAt()

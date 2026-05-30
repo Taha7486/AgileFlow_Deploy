@@ -33,7 +33,11 @@ public class MentionNotificationService {
         LocalDateTime now = LocalDateTime.now();
 
         Set<User> uniqueRecipients = new LinkedHashSet<>(recipients);
-        uniqueRecipients.forEach(user -> notificationService.createAndBroadcast(user, message));
+        uniqueRecipients.forEach(user -> notificationService.createAndBroadcast(
+                user,
+                message,
+                task != null ? "/planning?taskId=" + task.getId() : "/planning"
+        ));
 
         uniqueRecipients.forEach(user -> {
             messagingTemplate.convertAndSendToUser(

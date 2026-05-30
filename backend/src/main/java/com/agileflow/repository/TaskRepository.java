@@ -49,6 +49,21 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
             """)
     List<Task> findByAnyProjectId(@Param("projectId") Long projectId);
 
+    @Query("""
+            SELECT COUNT(DISTINCT t.id)
+            FROM Task t
+            LEFT JOIN t.project directProject
+            LEFT JOIN t.sprint s
+            LEFT JOIN s.project sprintProject
+            LEFT JOIN t.story story
+            LEFT JOIN story.backlog backlog
+            LEFT JOIN backlog.project storyProject
+            WHERE directProject.id = :projectId
+               OR sprintProject.id = :projectId
+               OR storyProject.id = :projectId
+            """)
+    long countByAnyProjectId(@Param("projectId") Long projectId);
+
     long countByStory_Id(Long storyId);
 
     long countByStory_IdAndStatut(Long storyId, Task.Statut statut);
@@ -183,6 +198,7 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
             WHERE t.statut = com.agileflow.entity.Task.Statut.DONE
               AND t.dateMiseAJour >= :startDateAtStart
               AND t.dateMiseAJour < :endDateExclusive
+              AND (:projectId IS NULL OR directProject.id = :projectId OR sprintProject.id = :projectId OR storyProject.id = :projectId)
               AND (:sprintId IS NULL OR s.id = :sprintId)
               AND (:managerId IS NULL OR directProject.manager.id = :managerId OR sprintProject.manager.id = :managerId OR storyProject.manager.id = :managerId)
               AND (:actorId IS NULL OR assignee.id = :actorId)
@@ -190,6 +206,33 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
     long countCompletedForAnalytics(
             @Param("startDateAtStart") LocalDateTime startDateAtStart,
             @Param("endDateExclusive") LocalDateTime endDateExclusive,
+            @Param("projectId") Long projectId,
+            @Param("sprintId") Long sprintId,
+            @Param("managerId") Long managerId,
+            @Param("actorId") Long actorId
+    );
+
+    @Query("""
+            SELECT COUNT(DISTINCT t.id)
+            FROM Task t
+            LEFT JOIN t.project directProject
+            LEFT JOIN t.sprint s
+            LEFT JOIN s.project sprintProject
+            LEFT JOIN t.story story
+            LEFT JOIN story.backlog backlog
+            LEFT JOIN backlog.project storyProject
+            LEFT JOIN t.assignedTo assignee
+            WHERE t.dateMiseAJour >= :startDateAtStart
+              AND t.dateMiseAJour < :endDateExclusive
+              AND (:projectId IS NULL OR directProject.id = :projectId OR sprintProject.id = :projectId OR storyProject.id = :projectId)
+              AND (:sprintId IS NULL OR s.id = :sprintId)
+              AND (:managerId IS NULL OR directProject.manager.id = :managerId OR sprintProject.manager.id = :managerId OR storyProject.manager.id = :managerId)
+              AND (:actorId IS NULL OR assignee.id = :actorId)
+            """)
+    long countTouchedForAnalytics(
+            @Param("startDateAtStart") LocalDateTime startDateAtStart,
+            @Param("endDateExclusive") LocalDateTime endDateExclusive,
+            @Param("projectId") Long projectId,
             @Param("sprintId") Long sprintId,
             @Param("managerId") Long managerId,
             @Param("actorId") Long actorId
@@ -208,6 +251,7 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
             WHERE t.statut = com.agileflow.entity.Task.Statut.DONE
               AND t.dateMiseAJour >= :startDateAtStart
               AND t.dateMiseAJour < :endDateExclusive
+              AND (:projectId IS NULL OR directProject.id = :projectId OR sprintProject.id = :projectId OR storyProject.id = :projectId)
               AND (:sprintId IS NULL OR s.id = :sprintId)
               AND (:managerId IS NULL OR directProject.manager.id = :managerId OR sprintProject.manager.id = :managerId OR storyProject.manager.id = :managerId)
               AND (:actorId IS NULL OR assignee.id = :actorId)
@@ -217,6 +261,35 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
     List<Object[]> aggregateCompletedForAnalyticsByDate(
             @Param("startDateAtStart") LocalDateTime startDateAtStart,
             @Param("endDateExclusive") LocalDateTime endDateExclusive,
+            @Param("projectId") Long projectId,
+            @Param("sprintId") Long sprintId,
+            @Param("managerId") Long managerId,
+            @Param("actorId") Long actorId
+    );
+
+    @Query("""
+            SELECT CAST(t.dateMiseAJour AS java.time.LocalDate), COUNT(DISTINCT t.id)
+            FROM Task t
+            LEFT JOIN t.project directProject
+            LEFT JOIN t.sprint s
+            LEFT JOIN s.project sprintProject
+            LEFT JOIN t.story story
+            LEFT JOIN story.backlog backlog
+            LEFT JOIN backlog.project storyProject
+            LEFT JOIN t.assignedTo assignee
+            WHERE t.dateMiseAJour >= :startDateAtStart
+              AND t.dateMiseAJour < :endDateExclusive
+              AND (:projectId IS NULL OR directProject.id = :projectId OR sprintProject.id = :projectId OR storyProject.id = :projectId)
+              AND (:sprintId IS NULL OR s.id = :sprintId)
+              AND (:managerId IS NULL OR directProject.manager.id = :managerId OR sprintProject.manager.id = :managerId OR storyProject.manager.id = :managerId)
+              AND (:actorId IS NULL OR assignee.id = :actorId)
+            GROUP BY CAST(t.dateMiseAJour AS java.time.LocalDate)
+            ORDER BY CAST(t.dateMiseAJour AS java.time.LocalDate) ASC
+            """)
+    List<Object[]> aggregateTouchedForAnalyticsByDate(
+            @Param("startDateAtStart") LocalDateTime startDateAtStart,
+            @Param("endDateExclusive") LocalDateTime endDateExclusive,
+            @Param("projectId") Long projectId,
             @Param("sprintId") Long sprintId,
             @Param("managerId") Long managerId,
             @Param("actorId") Long actorId
@@ -239,6 +312,7 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
             WHERE t.statut = com.agileflow.entity.Task.Statut.DONE
               AND t.dateMiseAJour >= :startDateAtStart
               AND t.dateMiseAJour < :endDateExclusive
+              AND (:projectId IS NULL OR directProject.id = :projectId OR sprintProject.id = :projectId OR storyProject.id = :projectId)
               AND (:sprintId IS NULL OR s.id = :sprintId)
               AND (:managerId IS NULL OR directProject.manager.id = :managerId OR sprintProject.manager.id = :managerId OR storyProject.manager.id = :managerId)
               AND (:actorId IS NULL OR assignee.id = :actorId)
@@ -248,6 +322,36 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
     List<Object[]> aggregateCompletedForAnalyticsByMember(
             @Param("startDateAtStart") LocalDateTime startDateAtStart,
             @Param("endDateExclusive") LocalDateTime endDateExclusive,
+            @Param("projectId") Long projectId,
+            @Param("sprintId") Long sprintId,
+            @Param("managerId") Long managerId,
+            @Param("actorId") Long actorId
+    );
+
+    @Query("""
+            SELECT assignee.id,
+                   COUNT(DISTINCT t.id)
+            FROM Task t
+            JOIN t.assignedTo assignee
+            LEFT JOIN t.project directProject
+            LEFT JOIN t.sprint s
+            LEFT JOIN s.project sprintProject
+            LEFT JOIN t.story story
+            LEFT JOIN story.backlog backlog
+            LEFT JOIN backlog.project storyProject
+            WHERE t.dateMiseAJour >= :startDateAtStart
+              AND t.dateMiseAJour < :endDateExclusive
+              AND (:projectId IS NULL OR directProject.id = :projectId OR sprintProject.id = :projectId OR storyProject.id = :projectId)
+              AND (:sprintId IS NULL OR s.id = :sprintId)
+              AND (:managerId IS NULL OR directProject.manager.id = :managerId OR sprintProject.manager.id = :managerId OR storyProject.manager.id = :managerId)
+              AND (:actorId IS NULL OR assignee.id = :actorId)
+            GROUP BY assignee.id
+            ORDER BY COUNT(DISTINCT t.id) DESC, assignee.id ASC
+            """)
+    List<Object[]> aggregateTouchedForAnalyticsByMember(
+            @Param("startDateAtStart") LocalDateTime startDateAtStart,
+            @Param("endDateExclusive") LocalDateTime endDateExclusive,
+            @Param("projectId") Long projectId,
             @Param("sprintId") Long sprintId,
             @Param("managerId") Long managerId,
             @Param("actorId") Long actorId

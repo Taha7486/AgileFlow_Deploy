@@ -96,7 +96,7 @@ public class TaskController {
 
     @GetMapping("/planning/export")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<byte[]> exportCsv(
+    public ResponseEntity<byte[]> exportPlanning(
             @RequestParam(required = false) Long projectId,
             @RequestParam(required = false) Long sprintId,
             @RequestParam(required = false) String statut,
@@ -106,16 +106,16 @@ public class TaskController {
             @RequestParam(required = false) String groupBy,
             @RequestParam(defaultValue = "dateCreation") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDir,
-            @RequestParam(defaultValue = "csv") String format
+            @RequestParam(defaultValue = "xlsx") String format
     ) {
-        if (!"csv".equalsIgnoreCase(format)) {
+        if (!"xlsx".equalsIgnoreCase(format) && !"excel".equalsIgnoreCase(format)) {
             throw new IllegalArgumentException("Format export non supporte");
         }
-        byte[] csv = planningService.exportCsv(projectId, sprintId, statut, priorite, assigneeId, search, groupBy, sortBy, sortDir);
+        byte[] excel = planningService.exportExcel(projectId, sprintId, statut, priorite, assigneeId, search, groupBy, sortBy, sortDir);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=agileflow-planning.csv")
-                .contentType(MediaType.parseMediaType("text/csv"))
-                .body(csv);
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=agileflow-planning.xlsx")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(excel);
     }
 
     @PatchMapping("/{id}/inline")

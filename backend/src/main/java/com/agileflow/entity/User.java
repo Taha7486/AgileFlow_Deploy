@@ -35,6 +35,9 @@ public class User {
     private String pendingInvitationTokenHash;
     @Builder.Default
     private LocalDateTime dateCreation = LocalDateTime.now();
+    @Lob
+    @Column(name = "avatar_url", columnDefinition = "LONGTEXT")
+    private String avatarUrl;
 
     /** Dernière connexion réussie (login). */
     private LocalDateTime dateDerniereConnexion;

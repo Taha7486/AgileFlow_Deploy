@@ -29,7 +29,7 @@ class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorBoundary
     localStorage.removeItem('user');
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
-    window.location.href = '/login';
+    window.location.href = '/';
   };
 
   render() {
@@ -50,7 +50,7 @@ class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorBoundary
             </Typography>
           )}
           <Button variant="contained" onClick={this.handleReset}>
-            Revenir a la connexion
+            Revenir a l'accueil
           </Button>
         </Alert>
       </Box>

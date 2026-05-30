@@ -22,6 +22,7 @@ import { getLabelColor } from '../../utils/kanbanHelpers';
 import { useKanbanStore } from '../../store/kanbanStore';
 import KanbanCardMenu from './KanbanCardMenu';
 import { formatIssueKey } from '../../utils/issueKey';
+import { resolvePresenceDisplay, usePresenceStore } from '../../store/presenceStore';
 
 interface Props {
   task: KanbanTask;
@@ -45,6 +46,8 @@ const KanbanCard = ({ task, isDragging: overlayDragging = false }: Props) => {
   const TypeIcon = TYPE_ICONS[task.typeTache] ?? Apps;
   const typeConfig = TYPE_CONFIG[task.typeTache];
   const priorityConfig = PRIORITE_CONFIG[task.priorite];
+  const getPresence = usePresenceStore((state) => state.getPresence);
+  const assigneePresence = resolvePresenceDisplay(task.assignee ? getPresence(task.assignee.id) : undefined);
 
   return (
     <Paper
@@ -188,7 +191,17 @@ const KanbanCard = ({ task, isDragging: overlayDragging = false }: Props) => {
             <MoreVert sx={{ fontSize: 16 }} />
           </IconButton>
           <Tooltip title={task.assignee ? `${task.assignee.prenom} ${task.assignee.nom}` : 'Non assigne'}>
-            <Avatar sx={{ width: 24, height: 24, fontSize: 11, bgcolor: task.assignee?.avatarColor ?? '#DFE1E6', color: task.assignee ? '#fff' : '#6B778C' }}>
+            <Avatar
+              src={task.assignee?.avatarUrl ?? undefined}
+              sx={{
+                width: 24,
+                height: 24,
+                fontSize: 11,
+                bgcolor: task.assignee?.avatarColor ?? '#DFE1E6',
+                color: task.assignee ? '#fff' : '#6B778C',
+                border: assigneePresence === 'LIVE' ? '2px solid #44b700' : undefined,
+              }}
+            >
               {task.assignee ? task.assignee.initiales : <Person sx={{ fontSize: 14 }} />}
             </Avatar>
           </Tooltip>

@@ -3,8 +3,8 @@ import { create } from 'zustand';
 import { IMessage, StompSubscription } from '@stomp/stompjs';
 import { useWebSocket } from './useWebSocket';
 import { useAuthStore } from '../store/authStore';
-import { fetchMessages, fetchPresenceSnapshot } from '../api/chatApi';
-import { usePresenceStore } from '../store/presenceStore';
+import { fetchMessages, fetchPresenceSnapshot, updateMyVisibility } from '../api/chatApi';
+import { loadSavedVisibility, usePresenceStore } from '../store/presenceStore';
 import { ChatMessageDTO, ChannelType } from '../types';
 
 export interface ChatIncomingAlert {
@@ -217,7 +217,9 @@ export const useChat = (props: UseChatProps = {}) => {
       setPresenceSnapshot(JSON.parse(message.body));
     });
 
-    fetchPresenceSnapshot()
+    const status = loadSavedVisibility();
+    updateMyVisibility(status)
+      .then(() => fetchPresenceSnapshot())
       .then(setPresenceSnapshot)
       .catch(console.error);
 
@@ -249,10 +251,15 @@ export const useChat = (props: UseChatProps = {}) => {
     }
   }, [hasMore, isLoadingHistory, currentPage, loadHistory]);
 
+  const refreshMessages = useCallback(() => {
+    loadHistory(0, true);
+  }, [loadHistory]);
+
   return {
     messages,
     sendMessage,
     loadMoreMessages,
+    refreshMessages,
     isLoadingHistory,
     hasMore,
     totalUnreadCount,

@@ -7,6 +7,7 @@ import { useTimelineStore } from '../../store/timelineStore';
 import { STATUT_CONFIG, TYPE_CONFIG } from '../../types/timeline.types';
 import type { ProjectMember } from '../../types';
 import type { TimelineStatut, TimelineType } from '../../types/timeline.types';
+import { resolvePresenceDisplay, usePresenceStore } from '../../store/presenceStore';
 
 interface Props {
   onSearch: (value: string) => void;
@@ -18,6 +19,7 @@ const TimelineToolbar = ({ onSearch, onCreateEpic }: Props) => {
   const { data, filters, setFilter, expandAll, collapseAll, loadTimeline } = useTimelineStore();
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
+  const getPresence = usePresenceStore((state) => state.getPresence);
 
   useEffect(() => {
     if (!activeProject?.id) {
@@ -41,11 +43,17 @@ const TimelineToolbar = ({ onSearch, onCreateEpic }: Props) => {
         <AvatarGroup max={5} sx={{ '& .MuiAvatar-root': { width: 30, height: 30, fontSize: 12, cursor: 'pointer' } }}>
           {members.map((member) => {
             const active = filters.assigneeId === member.userId;
+            const online = resolvePresenceDisplay(getPresence(member.userId)) === 'LIVE';
             return (
               <Tooltip key={member.userId} title={`${member.firstName} ${member.lastName}`}>
                 <Avatar
+                  src={member.avatarUrl ?? undefined}
                   onClick={() => setFilter('assigneeId', active ? null : member.userId)}
-                  sx={{ bgcolor: member.owner ? '#0C66E4' : '#6B778C', border: active ? '2px solid #0C66E4 !important' : undefined }}
+                  sx={{
+                    bgcolor: member.owner ? '#0C66E4' : '#6B778C',
+                    border: online ? '2px solid #44b700 !important' : active ? '2px solid #0C66E4 !important' : undefined,
+                    boxShadow: active && online ? '0 0 0 2px #0C66E4' : undefined,
+                  }}
                 >
                   {`${member.firstName?.[0] ?? ''}${member.lastName?.[0] ?? ''}`.toUpperCase()}
                 </Avatar>

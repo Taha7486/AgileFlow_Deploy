@@ -14,6 +14,9 @@ The current product scope includes:
 - project selector in the global header;
 - project CRUD from the header selector;
 - configurable project task prefix, for example `KAN`, `GRF` or `PROJ`;
+- project deletion cascades through project-scoped data such as tasks,
+  comments, diagrams, sprints, epics, backlog, invitations, members, project
+  chat messages and GitHub integration;
 - project invitations by email;
 - project roles and member management;
 - GitHub repository integration;
@@ -74,6 +77,7 @@ Frontend:
 - Zustand
 - Axios
 - React Router v6
+- lucide-react
 - Recharts
 - dnd-kit
 - React Flow
@@ -340,7 +344,10 @@ frontend/src/
 |-- context/
 |-- hooks/
 |-- pages/
+|   |-- LandingPage.tsx
+|   |-- LoadingPage.tsx
 |   |-- DiagramFlow/
+|   |-- auth/
 |   |-- kanban/
 |   |-- planning/
 |   |-- projects/summary/
@@ -372,11 +379,11 @@ read `localStorage.user` safely to avoid blank pages.
 
 | Route | Purpose |
 |---|---|
-| `/` | Redirects to active project summary when possible |
-| `/login` | Login |
-| `/register` | Register + invitation token support |
+| `/` | Public AgileFlow landing page |
+| `/login` | Branded login page with email/password and Google/GitHub OAuth |
+| `/register` | Branded registration page with invitation token support and OTP verification |
 | `/oauth2/redirect` | OAuth callback frontend |
-| `/dashboard` | Redirect/fallback to active project summary |
+| `/dashboard` | Redirect to active project summary; falls back to `/` when no project exists |
 | `/projects` | Legacy/list route, no longer main sidebar entry |
 | `/projects/:projectId/summary` | Project summary dashboard |
 | `/development` | GitHub development view for the active project |
@@ -417,12 +424,35 @@ The active project header controls project-scoped pages.
 
 ## 11. Feature Notes
 
+### Public Landing And Auth
+
+- `/` is a public AgileFlow landing page using the main icon from
+  `frontend/public/agileflow-icon.png`.
+- Authenticated users without any project are redirected to `/`; the landing
+  navbar then exposes a functional `Creer un projet` action.
+- `Ouvrir AgileFlow` is shown on the landing only when the authenticated user
+  already has at least one project.
+- Landing CTAs for create project, start free and connect GitHub open the
+  project creation flow for authenticated users instead of redirecting to
+  registration.
+- `/login` and `/register` use the same branded visual language as the landing:
+  dark gradient brand panel, clear form card, Google/GitHub OAuth actions and
+  responsive one-column mobile layout.
+- Registration keeps the existing email uniqueness checks, password policy,
+  invitation token flow and OTP verification.
+- `LoadingPage` is used for lazy route fallback, OAuth redirect finalization and
+  active-project redirect loading.
+
 ### Global Header
 
 - Displays AgileFlow branding.
 - Displays active project selector.
 - Project selector supports create/edit/delete from the dropdown/menu.
 - Project creation/edit includes the task prefix used for keys like `KAN-37`.
+- Project creation supports invited email chips and optional GitHub repository
+  connection; those actions run after the backend project is created.
+- When no project is active, the header does not render a placeholder project
+  avatar/name; it shows a direct create-project button.
 - Member invite button is next to the project selector.
 - Project-scoped pages should use `activeProjectStore`.
 
@@ -617,7 +647,57 @@ Frontend:
 `ActivityLog.task` uses Hibernate `@NotFound(action = IGNORE)` so logs can
 survive deleted tasks.
 
-## 12. Development Commands
+## 12. Demo Seed
+
+The Spring `seed` profile rebuilds a complete demo database. It deletes existing
+data and creates users, projects, project roles, invitations, tasks, epics,
+subtasks, comments, diagrams, notifications, chat messages, presence rows and
+activity logs.
+
+Run:
+
+```powershell
+cd backend/src/main/resources
+./seed-data.bat
+```
+
+Demo accounts:
+
+| Email | Password | Purpose |
+|---|---|---|
+| `owner@agileflow.com` | `Password@2024` | Main user demo, owner of `AgileFlow Demo` |
+| `admin@agileflow.com` | `Password@2024` | Platform admin dashboard |
+| `pm@agileflow.com` | `Password@2024` | Project admin |
+| `frontend@agileflow.com` | `Password@2024` | Frontend developer |
+| `backend@agileflow.com` | `Password@2024` | Backend developer |
+| `viewer@agileflow.com` | `Password@2024` | Read-only project member |
+| `invite@agileflow.com` | `Password@2024` | User with pending project invitation |
+
+Seeded projects:
+
+- `AgileFlow Demo` with issue prefix `KAN`, active and rich enough for summary,
+  planning, Kanban, timeline, DiagramFlow, chat, notifications and analytics.
+- `Mobile Banking` with issue prefix `MBK`, active secondary project for admin
+  filters and project switching.
+- `Legacy CRM` with issue prefix `CRM`, archived project visible from admin.
+
+Recommended video/screenshots:
+
+1. Landing page with connected profile controls.
+2. Login as `owner@agileflow.com`.
+3. Project summary for `AgileFlow Demo`.
+4. Planning with epics, tasks, subtasks and Excel export.
+5. Kanban board and task detail/comments.
+6. Timeline/Gantt view.
+7. DiagramFlow editor, especially `Sequence collaboration DiagramFlow`.
+8. Development page and optional GitHub connection.
+9. Teams page with project roles and pending invitation.
+10. Chat panel with project and private messages.
+11. Admin Analytics / Reports with PDF export.
+12. Admin Projects with archive/unarchive.
+13. Admin Activity Logs.
+
+## 13. Development Commands
 
 Backend:
 
@@ -644,7 +724,7 @@ Remove-Item -Recurse -Force node_modules/.vite/deps
 npm run dev
 ```
 
-## 13. Environment
+## 14. Environment
 
 Backend local safe defaults:
 
@@ -672,7 +752,7 @@ Do not commit:
 - real JWT secret
 - local `.env`
 
-## 14. Known Constraints and Maintenance Notes
+## 15. Known Constraints and Maintenance Notes
 
 - Flyway is disabled in development.
 - Some legacy Sprint/UserStory code remains for compatibility.

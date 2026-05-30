@@ -29,7 +29,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
-@Import(AnalyticsService.class)
+@Import({AnalyticsService.class, ProjectAccessService.class})
 class AnalyticsServiceTest {
 
     @Autowired
@@ -60,11 +60,11 @@ class AnalyticsServiceTest {
         Fixture fixture = createFixture();
         authenticateAs(fixture.admin());
 
-        AnalyticsDTO analytics = analyticsService.getAnalytics(AnalyticsPeriod.MONTH, null);
+        AnalyticsDTO analytics = analyticsService.getAnalytics(AnalyticsPeriod.MONTH, null, null);
 
         assertThat(analytics.totalActivities()).isEqualTo(3);
         assertThat(analytics.completedTasks()).isEqualTo(1);
-        assertThat(analytics.activeMembers()).isEqualTo(2);
+        assertThat(analytics.activeMembers()).isEqualTo(3);
         assertThat(analytics.memberStats()).extracting("memberName")
                 .contains("Alice Dev", "Sara Manager");
         assertThat(analytics.heatmap()).filteredOn(day -> day.activityCount() > 0)
@@ -97,11 +97,12 @@ class AnalyticsServiceTest {
 
         authenticateAs(fixture.manager());
 
-        AnalyticsDTO analytics = analyticsService.getAnalytics(AnalyticsPeriod.MONTH, null);
+        AnalyticsDTO analytics = analyticsService.getAnalytics(AnalyticsPeriod.MONTH, null, null);
 
-        assertThat(analytics.totalActivities()).isEqualTo(3);
+        assertThat(analytics.totalActivities()).isEqualTo(1);
         assertThat(analytics.memberStats()).extracting("memberName")
-                .contains("Sara Manager", "Alice Dev")
+                .contains("Sara Manager")
+                .doesNotContain("Alice Dev")
                 .doesNotContain("Other Manager");
     }
 
@@ -110,7 +111,7 @@ class AnalyticsServiceTest {
         Fixture fixture = createFixture();
         authenticateAs(fixture.admin());
 
-        byte[] pdf = analyticsService.exportAnalyticsPdf(AnalyticsPeriod.MONTH, null);
+        byte[] pdf = analyticsService.exportAnalyticsPdf(AnalyticsPeriod.MONTH, null, null);
 
         assertThat(pdf.length).isGreaterThan(100);
         assertThat(new String(Arrays.copyOf(pdf, 4), StandardCharsets.US_ASCII)).isEqualTo("%PDF");

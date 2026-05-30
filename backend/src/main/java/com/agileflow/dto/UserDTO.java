@@ -11,5 +11,6 @@ public record UserDTO(
         String role,
         String createdAt,
         Boolean active,
-        String lastLogin
+        String lastLogin,
+        String avatarUrl
 ) {}

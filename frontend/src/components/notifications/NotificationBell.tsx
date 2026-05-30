@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react';
 import type { MouseEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   IconButton,
   Badge,
@@ -10,23 +9,32 @@ import {
   Box,
   Typography,
   Button,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   alpha,
   useTheme,
 } from '@mui/material';
 import {
+  Close,
   NotificationsOutlined,
   DeleteOutline,
   NotificationsNoneOutlined
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../hooks/useNotifications';
+import NotifCenter from '../../pages/notifications/NotifCenter';
+import { getNotificationTargetUrl } from '../../utils/notificationNavigation';
+import type { NotificationDTO } from '../../api/notificationsApi';
 
 export const NotificationBell = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const anchorEl = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
+  const [centerOpen, setCenterOpen] = useState(false);
   const {
     notifications,
     unreadCount,
@@ -40,9 +48,15 @@ export const NotificationBell = () => {
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  const handleMarkAsRead = (id: number, isRead: boolean) => {
-    if (!isRead) {
-      markAsRead(id);
+  const handleNotificationClick = async (notification: NotificationDTO) => {
+    if (!notification.lu) {
+      await markAsRead(notification.id);
+    }
+    const targetUrl = getNotificationTargetUrl(notification);
+    if (targetUrl) {
+      handleClose();
+      setCenterOpen(false);
+      navigate(targetUrl);
     }
   };
 
@@ -105,7 +119,7 @@ export const NotificationBell = () => {
               size="small"
               onClick={() => {
                 handleClose();
-                navigate('/notifications');
+                setCenterOpen(true);
               }}
               sx={{ textTransform: 'none', fontSize: '0.875rem' }}
             >
@@ -150,7 +164,7 @@ export const NotificationBell = () => {
             {notifications.map((notification) => (
               <ListItem
                 key={notification.id}
-                onClick={() => handleMarkAsRead(notification.id, notification.lu)}
+                onClick={() => void handleNotificationClick(notification)}
                 sx={{
                   p: 2,
                   borderBottom: '1px solid',
@@ -225,6 +239,24 @@ export const NotificationBell = () => {
           </Box>
         )}
       </Popover>
+
+      <Dialog
+        open={centerOpen}
+        onClose={() => setCenterOpen(false)}
+        fullWidth
+        maxWidth="md"
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 1.5 }}>
+          <Typography fontWeight={900}>Centre de notifications</Typography>
+          <IconButton size="small" onClick={() => setCenterOpen(false)} aria-label="Fermer">
+            <Close fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ bgcolor: '#f8fafc', p: { xs: 2, md: 3 } }}>
+          <NotifCenter />
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

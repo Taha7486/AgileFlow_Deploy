@@ -22,6 +22,7 @@ import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { Add, ViewColumn } from '@mui/icons-material';
 import PageHeader from '../../components/layout/PageHeader';
 import { useActiveProject } from '../../hooks/useActiveProject';
+import { useAuth } from '../../context/AuthContext';
 import { useKanbanWebSocket } from '../../hooks/useKanbanWebSocket';
 import { useKanbanStore } from '../../store/kanbanStore';
 import type { KanbanStatut, KanbanTask } from '../../types/kanban.types';
@@ -47,6 +48,8 @@ const KanbanBoard = () => {
     openTask,
   } = useKanbanStore();
   const { activeProject, isLoading: projectLoading } = useActiveProject();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ROLE_ADMIN';
   const [activeTask, setActiveTask] = useState<KanbanTask | null>(null);
   const [snack, setSnack] = useState<string | null>(null);
   const dragFromStatut = useRef<KanbanStatut | null>(null);
@@ -117,7 +120,7 @@ const KanbanBoard = () => {
       {showNoProject ? (
         <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 2 }}>
           <Typography color="text.secondary">Selectionnez un projet dans le header pour afficher le tableau.</Typography>
-          <Button variant="contained" startIcon={<Add />}>Creer un projet</Button>
+          {!isAdmin && <Button variant="contained" startIcon={<Add />}>Creer un projet</Button>}
         </Box>
       ) : isLoading || projectLoading ? (
         <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

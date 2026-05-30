@@ -7,6 +7,7 @@ import {
   ListItemIcon,
   ListItemText,
   Paper,
+  Stack,
   Typography,
 } from '@mui/material';
 import {
@@ -35,49 +36,51 @@ const ProfileLayout = () => {
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
-      <Typography variant="h5" fontWeight={800} sx={{ mb: 0.5 }}>
-        Mon profil
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Compte, notifications et statut de presence.
-      </Typography>
-
-      <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' }, alignItems: 'flex-start' }}>
-        <Paper
-          elevation={0}
-          sx={{
-            width: { xs: '100%', md: 280 },
-            flexShrink: 0,
-            borderRadius: 3,
-            border: '1px solid',
-            borderColor: 'divider',
-            overflow: 'hidden',
-          }}
-        >
-          <Box sx={{ p: 3, textAlign: 'center', bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 2, md: 3 },
+          mb: 3,
+          borderRadius: 3,
+          border: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} alignItems={{ xs: 'flex-start', md: 'center' }} justifyContent="space-between">
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0 }}>
             <Avatar
               sx={{
-                width: 72,
-                height: 72,
-                mx: 'auto',
-                mb: 1.5,
-                bgcolor: 'rgba(255,255,255,0.2)',
-                fontSize: 28,
-                fontWeight: 700,
+                width: 58,
+                height: 58,
+                bgcolor: 'primary.main',
+                fontSize: 22,
+                fontWeight: 800,
+                flexShrink: 0,
               }}
             >
               {user?.firstName?.[0]}{user?.lastName?.[0]}
             </Avatar>
-            <Typography fontWeight={700}>
-              {user?.firstName} {user?.lastName}
-            </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5 }}>
-              {user?.email}
-            </Typography>
-            <Chip label={role.label} color={role.color} size="small" sx={{ mt: 1.5 }} />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="h5" fontWeight={900} noWrap>
+                Mon profil
+              </Typography>
+              <Typography variant="body2" color="text.secondary" noWrap>
+                {user?.firstName} {user?.lastName} - {user?.email}
+              </Typography>
+              <Chip label={role.label} color={role.color} size="small" sx={{ mt: 1 }} />
+            </Box>
           </Box>
 
-          <List dense disablePadding>
+          <List
+            dense
+            disablePadding
+            sx={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 1,
+              width: { xs: '100%', md: 'auto' },
+            }}
+          >
             {NAV.map((item) => {
               const active = location.pathname === item.to;
               return (
@@ -86,28 +89,35 @@ const ProfileLayout = () => {
                   component={NavLink}
                   to={item.to}
                   sx={{
-                    py: 1.5,
-                    borderLeft: 3,
-                    borderColor: active ? 'primary.main' : 'transparent',
-                    bgcolor: active ? 'primary.50' : 'transparent',
+                    width: { xs: '100%', sm: 'auto' },
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: active ? 'primary.main' : 'divider',
+                    bgcolor: active ? 'primary.main' : 'background.paper',
+                    color: active ? 'primary.contrastText' : 'text.primary',
+                    px: 1.5,
+                    py: 1,
+                    '&:hover': {
+                      bgcolor: active ? 'primary.dark' : 'grey.50',
+                    },
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 40, color: active ? 'primary.main' : 'text.secondary' }}>
+                  <ListItemIcon sx={{ minWidth: 32, color: 'inherit' }}>
                     {item.icon}
                   </ListItemIcon>
                   <ListItemText
                     primary={item.label}
-                    primaryTypographyProps={{ fontWeight: active ? 700 : 500, fontSize: 14 }}
+                    primaryTypographyProps={{ fontWeight: 800, fontSize: 14 }}
                   />
                 </ListItemButton>
               );
             })}
           </List>
-        </Paper>
+        </Stack>
+      </Paper>
 
-        <Box sx={{ flexGrow: 1, minWidth: 0, width: '100%' }}>
-          <Outlet />
-        </Box>
+      <Box sx={{ flexGrow: 1, minWidth: 0, width: '100%' }}>
+        <Outlet />
       </Box>
     </Box>
   );

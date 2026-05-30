@@ -31,6 +31,7 @@ import { formatDateFR, isOverdue, PRIORITE_CONFIG, STATUT_CONFIG, userFullName }
 import TaskTypeIcon from '../../components/planning/TaskTypeIcon';
 import CreateSubtaskModal from '../../components/planning/CreateSubtaskModal';
 import { formatIssueKey } from '../../utils/issueKey';
+import { resolvePresenceDisplay, usePresenceStore } from '../../store/presenceStore';
 
 interface Props {
   task: PlanningTask;
@@ -56,6 +57,7 @@ const PlanningTaskRow = ({ task, selected, onSelect, onOpen, depth = 0 }: Props)
   
   const [expanded, setExpanded] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const getPresence = usePresenceStore((state) => state.getPresence);
 
   const canHaveChildren = (ALLOWED_CHILD_TYPES[task.typeTache] || []).length > 0;
   const hasChildren = (task.sousTaskes || []).length > 0;
@@ -152,20 +154,22 @@ const PlanningTaskRow = ({ task, selected, onSelect, onOpen, depth = 0 }: Props)
           </TableCell>
         );
       case 'assignee':
+        const assigneePresence = resolvePresenceDisplay(task.assignee ? getPresence(task.assignee.id) : undefined);
         return (
           <TableCell>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Avatar sx={{ width: 24, height: 24, bgcolor: task.assignee?.avatarColor ?? 'grey.400', fontSize: 11 }}>{task.assignee?.initiales ?? '?'}</Avatar>
+              <Avatar src={task.assignee?.avatarUrl ?? undefined} sx={{ width: 24, height: 24, bgcolor: task.assignee?.avatarColor ?? 'grey.400', fontSize: 11, border: assigneePresence === 'LIVE' ? '2px solid #44b700' : undefined }}>{task.assignee?.initiales ?? '?'}</Avatar>
               <Typography variant="body2" noWrap>{userFullName(task.assignee)}</Typography>
             </Box>
           </TableCell>
         );
       case 'reporter':
+        const reporterPresence = resolvePresenceDisplay(task.reporter ? getPresence(task.reporter.id) : undefined);
         return (
           <TableCell>
             {task.reporter ? (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Avatar sx={{ width: 24, height: 24, bgcolor: task.reporter.avatarColor, fontSize: 11 }}>{task.reporter.initiales}</Avatar>
+                <Avatar src={task.reporter.avatarUrl ?? undefined} sx={{ width: 24, height: 24, bgcolor: task.reporter.avatarColor, fontSize: 11, border: reporterPresence === 'LIVE' ? '2px solid #44b700' : undefined }}>{task.reporter.initiales}</Avatar>
                 <Typography variant="body2" noWrap>{userFullName(task.reporter)}</Typography>
               </Box>
             ) : <Typography variant="body2" color="text.secondary">-</Typography>}

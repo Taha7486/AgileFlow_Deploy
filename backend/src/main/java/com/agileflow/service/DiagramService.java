@@ -12,7 +12,6 @@ import com.agileflow.entity.DiagramEdge;
 import com.agileflow.entity.DiagramNode;
 import com.agileflow.entity.Project;
 import com.agileflow.entity.Task;
-import com.agileflow.entity.Team;
 import com.agileflow.entity.User;
 import com.agileflow.exception.BadRequestException;
 import com.agileflow.exception.ForbiddenOperationException;
@@ -23,7 +22,6 @@ import com.agileflow.repository.DiagramNodeRepository;
 import com.agileflow.repository.DiagramRepository;
 import com.agileflow.repository.ProjectRepository;
 import com.agileflow.repository.TaskRepository;
-import com.agileflow.repository.TeamMemberRepository;
 import com.agileflow.repository.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -55,7 +53,7 @@ public class DiagramService {
     private final DiagramNodeRepository diagramNodeRepository;
     private final DiagramEdgeRepository diagramEdgeRepository;
     private final DiagramCollaboratorRepository collaboratorRepository;
-    private final TeamMemberRepository teamMemberRepository;
+    private final ProjectAccessService projectAccessService;
     private final NotificationService notificationService;
     private final DiagramNotificationService diagramNotificationService;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -74,6 +72,17 @@ public class DiagramService {
     @Transactional(readOnly = true)
     public List<DiagramDTO> listDiagrams(Long projectId) {
         User actor = currentUser();
+        if (projectId != null) {
+            Project project = projectRepository.findById(projectId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Projet introuvable"));
+            if (!canViewProject(actor, project)) {
+                throw new ForbiddenOperationException("Vous n'avez pas acces a ce projet.");
+            }
+            return diagramRepository.findByProjectId(projectId).stream()
+                    .filter(diagram -> canView(actor, diagram))
+                    .map(this::toDTO)
+                    .toList();
+        }
         Long actorId = isAdmin(actor) ? null : actor.getId();
         return diagramRepository.findVisible(projectId, actorId).stream()
                 .map(this::toDTO)
@@ -88,7 +97,8 @@ public class DiagramService {
         if (!canViewProject(actor, project)) {
             throw new ForbiddenOperationException("Vous n'avez pas acces a ce projet.");
         }
-        return diagramRepository.findVisible(projectId, isAdmin(actor) ? null : actor.getId()).stream()
+        return diagramRepository.findByProjectId(projectId).stream()
+                .filter(diagram -> canView(actor, diagram))
                 .map(this::toDTO)
                 .toList();
     }
@@ -436,20 +446,21 @@ public class DiagramService {
     }
 
     private boolean canCreateInProject(User actor, Project project) {
-        return canViewProject(actor, project);
+        return project != null && projectAccessService.canEditProjectContent(actor, project);
     }
 
     private boolean canView(User actor, Diagram diagram) {
         return isAdmin(actor)
                 || diagram.isEffectivelyShared()
                 || sameUser(actor, diagram.getEffectiveOwner())
-                || isProjectManager(actor, diagram.getProject())
                 || collaboratorRepository.existsByDiagramIdAndUserId(diagram.getId(), actor.getId())
                 || canViewProject(actor, diagram.getProject());
     }
 
     private boolean canEdit(User actor, Diagram diagram) {
-        if (isAdmin(actor) || sameUser(actor, diagram.getEffectiveOwner()) || isProjectManager(actor, diagram.getProject())) {
+        if (isAdmin(actor)
+                || sameUser(actor, diagram.getEffectiveOwner())
+                || (diagram.getProject() != null && projectAccessService.canEditProjectContent(actor, diagram.getProject()))) {
             return true;
         }
         return collaboratorRepository.findByDiagramIdAndUserId(diagram.getId(), actor.getId())
@@ -458,24 +469,13 @@ public class DiagramService {
     }
 
     private boolean canManageCollaborators(User actor, Diagram diagram) {
-        return isAdmin(actor) || sameUser(actor, diagram.getEffectiveOwner());
+        return isAdmin(actor)
+                || sameUser(actor, diagram.getEffectiveOwner())
+                || (diagram.getProject() != null && projectAccessService.canManageProject(actor, diagram.getProject()));
     }
 
     private boolean canViewProject(User actor, Project project) {
-        if (project == null) {
-            return false;
-        }
-        if (isAdmin(actor) || isProjectManager(actor, project)) {
-            return true;
-        }
-        Team team = project.getTeam();
-        return team != null && teamMemberRepository.findByTeam_IdAndUser_Id(team.getId(), actor.getId()).isPresent();
-    }
-
-    private boolean isProjectManager(User actor, Project project) {
-        return project != null
-                && project.getManager() != null
-                && project.getManager().getId().equals(actor.getId());
+        return project != null && projectAccessService.hasProjectAccess(actor, project);
     }
 
     private boolean sameUser(User left, User right) {
@@ -763,7 +763,7 @@ public class DiagramService {
         recipients.remove(actor.getId());
 
         String message = "Diagramme partage: " + diagram.getDisplayTitle();
-        recipients.values().forEach(user -> notificationService.createAndBroadcast(user, message));
+        recipients.values().forEach(user -> notificationService.createAndBroadcast(user, message, "/diagrams/" + diagram.getId()));
     }
 
     private String displayName(User user) {

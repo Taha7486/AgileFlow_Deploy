@@ -29,6 +29,7 @@ import { useActiveProjectStore } from '../../store/activeProjectStore';
 import type { ProjectMember } from '../../types';
 import type { GroupByOption, TaskPriorite, TaskStatut } from '../../types/planning.types';
 import { COLUMN_LABELS, PRIORITE_CONFIG, STATUT_CONFIG } from '../../utils/planningHelpers';
+import { resolvePresenceDisplay, usePresenceStore } from '../../store/presenceStore';
 
 interface Props {
   onOpenFilters?: () => void;
@@ -41,6 +42,7 @@ const PlanningToolbar = ({ onSearchChange }: Props) => {
   const [columnsAnchor, setColumnsAnchor] = useState<HTMLElement | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [members, setMembers] = useState<ProjectMember[]>([]);
+  const getPresence = usePresenceStore((state) => state.getPresence);
 
   const hasActiveFilters = useMemo(
     () => JSON.stringify({ ...filters, projectId: null }) !== JSON.stringify(DEFAULT_PLANNING_FILTERS),
@@ -65,7 +67,7 @@ const PlanningToolbar = ({ onSearchChange }: Props) => {
           <Chip size="small" color="warning" variant="outlined" label={`${stats?.overdue ?? 0} en retard`} />
         </Stack>
         <Stack direction="row" spacing={1} alignItems="center">
-          <Button size="small" startIcon={<Download />} onClick={() => void planningApi.exportCsv(filters)}>Exporter CSV</Button>
+          <Button size="small" startIcon={<Download />} onClick={() => void planningApi.exportExcel(filters)}>Exporter Excel</Button>
           <Button size="small" startIcon={<ViewColumn />} onClick={(e) => setColumnsAnchor(e.currentTarget)}>Colonnes</Button>
         </Stack>
       </Toolbar>
@@ -83,13 +85,16 @@ const PlanningToolbar = ({ onSearchChange }: Props) => {
           <AvatarGroup max={5} sx={{ '& .MuiAvatar-root': { width: 30, height: 30, fontSize: 12, cursor: 'pointer' } }}>
             {members.map((member) => {
               const active = filters.assigneeId === member.userId;
+              const online = resolvePresenceDisplay(getPresence(member.userId)) === 'LIVE';
               return (
                 <Tooltip key={member.userId} title={`${member.firstName} ${member.lastName}`}>
                   <Avatar
+                    src={member.avatarUrl ?? undefined}
                     onClick={() => applyFiltersAndReload({ assigneeId: active ? null : member.userId })}
                     sx={{
                       bgcolor: member.owner ? '#0C66E4' : '#6B778C',
-                      border: active ? '2px solid #0C66E4 !important' : undefined,
+                      border: online ? '2px solid #44b700 !important' : active ? '2px solid #0C66E4 !important' : undefined,
+                      boxShadow: active && online ? '0 0 0 2px #0C66E4' : undefined,
                     }}
                   >
                     {`${member.firstName?.[0] ?? ''}${member.lastName?.[0] ?? ''}`.toUpperCase()}

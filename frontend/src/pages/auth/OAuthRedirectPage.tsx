@@ -1,10 +1,20 @@
 import { useEffect, useRef } from 'react';
-import { Box, CircularProgress, Paper, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import type { Role } from '../../types';
+import LoadingPage from '../LoadingPage';
+import { fetchProjects } from '../../api/projectsApi';
 
 const homeForRole = (role: Role) => (role === 'ROLE_ADMIN' ? '/admin' : '/dashboard');
+const homeAfterAuth = async (role: Role) => {
+  if (role === 'ROLE_ADMIN') return '/admin';
+  try {
+    const projects = await fetchProjects();
+    return projects.length > 0 ? '/dashboard' : '/';
+  } catch {
+    return homeForRole(role);
+  }
+};
 
 const OAuthRedirectPage = () => {
   const navigate = useNavigate();
@@ -25,6 +35,7 @@ const OAuthRedirectPage = () => {
     const role = params.get('role') as Role | null;
     const firstName = params.get('prenom') ?? '';
     const lastName = params.get('nom') ?? '';
+    const avatarUrl = params.get('avatarUrl');
 
     if (!accessToken || !email || !role || Number.isNaN(userId)) {
       if (token && user) {
@@ -41,22 +52,13 @@ const OAuthRedirectPage = () => {
       role,
       firstName,
       lastName,
+      avatarUrl,
     }, refreshToken);
 
-    navigate(homeForRole(role), { replace: true });
+    void homeAfterAuth(role).then((path) => navigate(path, { replace: true }));
   }, [navigate, setAuth, token, user]);
 
-  return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', bgcolor: 'grey.100' }}>
-      <Paper elevation={3} sx={{ p: 4, width: '100%', maxWidth: 360, textAlign: 'center', borderRadius: 3 }}>
-        <CircularProgress size={32} sx={{ mb: 2 }} />
-        <Typography fontWeight={700}>Connexion en cours...</Typography>
-        <Typography variant="body2" color="text.secondary" mt={1}>
-          Finalisation de votre session AgileFlow
-        </Typography>
-      </Paper>
-    </Box>
-  );
+  return <LoadingPage message="Finalisation de votre session AgileFlow..." />;
 };
 
 export default OAuthRedirectPage;

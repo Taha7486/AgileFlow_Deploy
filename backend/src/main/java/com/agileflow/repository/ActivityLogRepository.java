@@ -8,9 +8,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> {
+
+    void deleteByProject_Id(Long projectId);
+
+    void deleteByTask_IdIn(Collection<Long> taskIds);
 
     Page<ActivityLog> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
@@ -81,14 +87,20 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> 
     @Query("""
             SELECT COUNT(log.id)
             FROM ActivityLog log
-            WHERE log.activityDate BETWEEN :startDate AND :endDate
-              AND (:sprintId IS NULL OR log.sprint.id = :sprintId)
-              AND (:managerId IS NULL OR log.project.manager.id = :managerId)
+            LEFT JOIN log.project project
+            LEFT JOIN project.manager manager
+            LEFT JOIN log.sprint sprint
+            WHERE log.createdAt >= :startDateAtStart
+              AND log.createdAt < :endDateExclusive
+              AND (:projectId IS NULL OR project.id = :projectId)
+              AND (:sprintId IS NULL OR sprint.id = :sprintId)
+              AND (:managerId IS NULL OR manager.id = :managerId)
               AND (:actorId IS NULL OR log.actor.id = :actorId)
             """)
     long countForScope(
-            @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate,
+            @Param("startDateAtStart") LocalDateTime startDateAtStart,
+            @Param("endDateExclusive") LocalDateTime endDateExclusive,
+            @Param("projectId") Long projectId,
             @Param("sprintId") Long sprintId,
             @Param("managerId") Long managerId,
             @Param("actorId") Long actorId
@@ -97,14 +109,20 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> 
     @Query("""
             SELECT COUNT(DISTINCT log.actor.id)
             FROM ActivityLog log
-            WHERE log.activityDate BETWEEN :startDate AND :endDate
-              AND (:sprintId IS NULL OR log.sprint.id = :sprintId)
-              AND (:managerId IS NULL OR log.project.manager.id = :managerId)
+            LEFT JOIN log.project project
+            LEFT JOIN project.manager manager
+            LEFT JOIN log.sprint sprint
+            WHERE log.createdAt >= :startDateAtStart
+              AND log.createdAt < :endDateExclusive
+              AND (:projectId IS NULL OR project.id = :projectId)
+              AND (:sprintId IS NULL OR sprint.id = :sprintId)
+              AND (:managerId IS NULL OR manager.id = :managerId)
               AND (:actorId IS NULL OR log.actor.id = :actorId)
             """)
     long countActiveMembersForScope(
-            @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate,
+            @Param("startDateAtStart") LocalDateTime startDateAtStart,
+            @Param("endDateExclusive") LocalDateTime endDateExclusive,
+            @Param("projectId") Long projectId,
             @Param("sprintId") Long sprintId,
             @Param("managerId") Long managerId,
             @Param("actorId") Long actorId
@@ -119,54 +137,72 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> 
                    SUM(CASE WHEN log.action = com.agileflow.entity.ActivityLog.Action.TASK_COMPLETED THEN 1 ELSE 0 END)
             FROM ActivityLog log
             JOIN log.actor actor
-            WHERE log.activityDate BETWEEN :startDate AND :endDate
-              AND (:sprintId IS NULL OR log.sprint.id = :sprintId)
-              AND (:managerId IS NULL OR log.project.manager.id = :managerId)
+            LEFT JOIN log.project project
+            LEFT JOIN project.manager manager
+            LEFT JOIN log.sprint sprint
+            WHERE log.createdAt >= :startDateAtStart
+              AND log.createdAt < :endDateExclusive
+              AND (:projectId IS NULL OR project.id = :projectId)
+              AND (:sprintId IS NULL OR sprint.id = :sprintId)
+              AND (:managerId IS NULL OR manager.id = :managerId)
               AND (:actorId IS NULL OR actor.id = :actorId)
             GROUP BY actor.id, actor.prenom, actor.nom, actor.email, actor.role
             ORDER BY COUNT(log.id) DESC, actor.id ASC
             """)
     List<Object[]> aggregateByMember(
-            @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate,
+            @Param("startDateAtStart") LocalDateTime startDateAtStart,
+            @Param("endDateExclusive") LocalDateTime endDateExclusive,
+            @Param("projectId") Long projectId,
             @Param("sprintId") Long sprintId,
             @Param("managerId") Long managerId,
             @Param("actorId") Long actorId
     );
 
     @Query("""
-            SELECT log.activityDate, COUNT(log.id)
+            SELECT CAST(log.createdAt AS java.time.LocalDate), COUNT(log.id)
             FROM ActivityLog log
-            WHERE log.activityDate BETWEEN :startDate AND :endDate
-              AND (:sprintId IS NULL OR log.sprint.id = :sprintId)
-              AND (:managerId IS NULL OR log.project.manager.id = :managerId)
+            LEFT JOIN log.project project
+            LEFT JOIN project.manager manager
+            LEFT JOIN log.sprint sprint
+            WHERE log.createdAt >= :startDateAtStart
+              AND log.createdAt < :endDateExclusive
+              AND (:projectId IS NULL OR project.id = :projectId)
+              AND (:sprintId IS NULL OR sprint.id = :sprintId)
+              AND (:managerId IS NULL OR manager.id = :managerId)
               AND (:actorId IS NULL OR log.actor.id = :actorId)
-            GROUP BY log.activityDate
-            ORDER BY log.activityDate ASC
+            GROUP BY CAST(log.createdAt AS java.time.LocalDate)
+            ORDER BY CAST(log.createdAt AS java.time.LocalDate) ASC
             """)
     List<Object[]> aggregateByDate(
-            @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate,
+            @Param("startDateAtStart") LocalDateTime startDateAtStart,
+            @Param("endDateExclusive") LocalDateTime endDateExclusive,
+            @Param("projectId") Long projectId,
             @Param("sprintId") Long sprintId,
             @Param("managerId") Long managerId,
             @Param("actorId") Long actorId
     );
 
     @Query("""
-            SELECT log.activityDate,
+            SELECT CAST(log.createdAt AS java.time.LocalDate),
                    COUNT(log.id),
                    SUM(CASE WHEN log.action = com.agileflow.entity.ActivityLog.Action.TASK_COMPLETED THEN 1 ELSE 0 END)
             FROM ActivityLog log
-            WHERE log.activityDate BETWEEN :startDate AND :endDate
-              AND (:sprintId IS NULL OR log.sprint.id = :sprintId)
-              AND (:managerId IS NULL OR log.project.manager.id = :managerId)
+            LEFT JOIN log.project project
+            LEFT JOIN project.manager manager
+            LEFT JOIN log.sprint sprint
+            WHERE log.createdAt >= :startDateAtStart
+              AND log.createdAt < :endDateExclusive
+              AND (:projectId IS NULL OR project.id = :projectId)
+              AND (:sprintId IS NULL OR sprint.id = :sprintId)
+              AND (:managerId IS NULL OR manager.id = :managerId)
               AND (:actorId IS NULL OR log.actor.id = :actorId)
-            GROUP BY log.activityDate
-            ORDER BY log.activityDate ASC
+            GROUP BY CAST(log.createdAt AS java.time.LocalDate)
+            ORDER BY CAST(log.createdAt AS java.time.LocalDate) ASC
             """)
     List<Object[]> aggregateTrendByDate(
-            @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate,
+            @Param("startDateAtStart") LocalDateTime startDateAtStart,
+            @Param("endDateExclusive") LocalDateTime endDateExclusive,
+            @Param("projectId") Long projectId,
             @Param("sprintId") Long sprintId,
             @Param("managerId") Long managerId,
             @Param("actorId") Long actorId

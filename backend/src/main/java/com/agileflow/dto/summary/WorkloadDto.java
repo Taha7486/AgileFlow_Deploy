@@ -6,6 +6,7 @@ public record WorkloadDto(
         String prenom,
         String initiales,
         String avatarColor,
+        String avatarUrl,
         long tachesAssignees,
         double pourcentage
 ) {

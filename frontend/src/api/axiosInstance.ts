@@ -30,6 +30,15 @@ const processQueue = (error: Error | null, token: string | null = null) => {
   failedQueue = [];
 };
 
+const extractErrorMessage = (data: unknown) => {
+  if (typeof data === 'string') return data;
+  if (data && typeof data === 'object' && 'message' in data) {
+    const message = (data as { message?: unknown }).message;
+    return typeof message === 'string' ? message : undefined;
+  }
+  return undefined;
+};
+
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -40,7 +49,7 @@ axiosInstance.interceptors.response.use(
       // Si la requête échouée PENDANT un login ou refresh -> on déconnecte de suite
       if (originalRequest.url?.includes('/auth/refresh') || originalRequest.url?.includes('/auth/login')) {
         useAuthStore.getState().logout();
-        window.location.href = '/login';
+        window.location.href = '/';
         return Promise.reject(error);
       }
 
@@ -62,7 +71,7 @@ axiosInstance.interceptors.response.use(
       const refreshToken = useAuthStore.getState().refreshToken;
       if (!refreshToken) {
          useAuthStore.getState().logout();
-         window.location.href = '/login';
+         window.location.href = '/';
          return Promise.reject(error);
       }
 
@@ -79,6 +88,7 @@ axiosInstance.interceptors.response.use(
           role: data.role,
           firstName: data.prenom,
           lastName: data.nom,
+          avatarUrl: data.avatarUrl ?? useAuthStore.getState().user?.avatarUrl ?? null,
         }, data.refreshToken);
 
         // Relancer les requêtes en attente
@@ -91,11 +101,23 @@ axiosInstance.interceptors.response.use(
       } catch (err) {
         processQueue(err as Error, null);
         useAuthStore.getState().logout();
-        window.location.href = '/login';
+        window.location.href = '/';
         return Promise.reject(err);
       } finally {
         isRefreshing = false;
       }
+    }
+
+    const method = String(error.config?.method ?? 'get').toLowerCase();
+    const isUserAction = ['post', 'put', 'patch', 'delete'].includes(method);
+
+    if (error.response?.status === 403 && isUserAction) {
+      const message = extractErrorMessage(error.response.data)
+        ?? "Vous n'avez pas les droits suffisants pour effectuer cette action.";
+
+      window.dispatchEvent(new CustomEvent('agileflow:toast', {
+        detail: { message, severity: 'error' },
+      }));
     }
 
     return Promise.reject(error);

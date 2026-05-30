@@ -7,6 +7,11 @@ import com.agileflow.exception.ForbiddenOperationException;
 import com.agileflow.exception.ResourceNotFoundException;
 import com.agileflow.repository.ProjectRepository;
 import com.agileflow.repository.ProjectMemberRepository;
+import com.agileflow.repository.ActivityLogRepository;
+import com.agileflow.repository.CommentMentionRepository;
+import com.agileflow.repository.CommentRepository;
+import com.agileflow.repository.DiagramRepository;
+import com.agileflow.repository.GitHubTaskBranchRepository;
 import com.agileflow.repository.SprintRepository;
 import com.agileflow.repository.TaskRepository;
 import com.agileflow.repository.UserRepository;
@@ -39,6 +44,11 @@ public class TaskService {
     private final ProjectRepository projectRepository;
     private final UserStoryRepository userStoryRepository;
     private final ActivityLogger activityLogger;
+    private final ActivityLogRepository activityLogRepository;
+    private final CommentMentionRepository commentMentionRepository;
+    private final CommentRepository commentRepository;
+    private final DiagramRepository diagramRepository;
+    private final GitHubTaskBranchRepository gitHubTaskBranchRepository;
     private final EmailNotificationService emailNotificationService;
     private final ProjectAccessService projectAccessService;
     private final SimpMessagingTemplate messagingTemplate;
@@ -265,7 +275,34 @@ public class TaskService {
         }
 
         activityLogger.log(actor, ActivityLog.Action.TASK_DELETED, "Tache supprimee: " + task.getTitre(), project, task.getSprint(), null);
+        cleanupTaskDependencies(task);
         taskRepository.delete(task);
+    }
+
+    private void cleanupTaskDependencies(Task task) {
+        List<Long> taskIds = collectTaskIds(task);
+        if (taskIds.isEmpty()) {
+            return;
+        }
+        diagramRepository.detachTasks(taskIds);
+        commentMentionRepository.deleteByCommentTaskIds(taskIds);
+        commentRepository.deleteByTask_IdIn(taskIds);
+        gitHubTaskBranchRepository.deleteByTask_IdIn(taskIds);
+        activityLogRepository.deleteByTask_IdIn(taskIds);
+    }
+
+    private List<Long> collectTaskIds(Task task) {
+        List<Long> ids = new java.util.ArrayList<>();
+        collectTaskIds(task, ids);
+        return ids;
+    }
+
+    private void collectTaskIds(Task task, List<Long> ids) {
+        if (task == null || task.getId() == null || ids.contains(task.getId())) {
+            return;
+        }
+        ids.add(task.getId());
+        taskRepository.findByParentTask_Id(task.getId()).forEach(child -> collectTaskIds(child, ids));
     }
 
     @Transactional

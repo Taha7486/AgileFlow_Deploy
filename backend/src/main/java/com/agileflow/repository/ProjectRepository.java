@@ -30,7 +30,8 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
             SELECT DISTINCT p FROM Project p
             LEFT JOIN FETCH p.manager
             LEFT JOIN ProjectMember pm ON pm.project.id = p.id AND pm.user.id = :userId
-            WHERE p.manager.id = :userId OR pm.user.id = :userId
+            WHERE p.statut <> com.agileflow.entity.Project.Statut.ARCHIVE
+              AND (p.manager.id = :userId OR pm.user.id = :userId)
             ORDER BY p.dateDebut DESC, p.id DESC
             """)
     List<Project> findAccessibleByUserId(@Param("userId") Long userId);

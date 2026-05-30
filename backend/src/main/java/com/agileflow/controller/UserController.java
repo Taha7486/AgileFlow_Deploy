@@ -20,8 +20,11 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public List<UserDTO> listUsers(@RequestParam(required = false) String q) {
-        return userService.listUsers(q);
+    public List<UserDTO> listUsers(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Long projectId
+    ) {
+        return userService.listUsers(q, projectId);
     }
 
     @GetMapping("/search")

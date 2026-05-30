@@ -3,6 +3,7 @@ import axiosInstance from './axiosInstance';
 export interface NotificationDTO {
   id: number;
   message: string;
+  targetUrl?: string | null;
   lu: boolean;
   dateCreation: string;
 }

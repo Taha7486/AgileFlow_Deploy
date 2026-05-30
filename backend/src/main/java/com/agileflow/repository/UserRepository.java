@@ -15,6 +15,61 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByActifTrueOrderByDateCreationDesc();
 
     @Query("""
+            SELECT u.id,
+                   CONCAT(CONCAT(COALESCE(u.prenom, ''), ' '), COALESCE(u.nom, '')),
+                   u.email,
+                   u.role
+            FROM User u
+            WHERE u.actif = true
+            ORDER BY u.dateCreation DESC, u.id DESC
+            """)
+    List<Object[]> findActiveUsersForAnalytics();
+
+    @Query("""
+            SELECT DISTINCT u.id,
+                   CONCAT(CONCAT(COALESCE(u.prenom, ''), ' '), COALESCE(u.nom, '')),
+                   u.email,
+                   u.role
+            FROM User u
+            WHERE u.actif = true
+              AND (
+                u.id = (
+                    SELECT p.manager.id
+                    FROM Project p
+                    WHERE p.id = :projectId
+                )
+                OR EXISTS (
+                    SELECT 1
+                    FROM ProjectMember pm
+                    WHERE pm.project.id = :projectId
+                      AND pm.user.id = u.id
+                )
+              )
+            ORDER BY u.id DESC
+            """)
+    List<Object[]> findActiveParticipantsForAnalytics(@Param("projectId") Long projectId);
+
+    @Query("""
+            SELECT COUNT(DISTINCT u.id)
+            FROM User u
+            WHERE u.actif = true
+              AND (
+                u.id = (
+                    SELECT p.manager.id
+                    FROM Project p
+                    WHERE p.id = :projectId
+                )
+                OR EXISTS (
+                    SELECT 1
+                    FROM ProjectMember pm
+                    WHERE pm.project.id = :projectId
+                      AND pm.user.id = u.id
+                )
+              )
+            """)
+    long countActiveParticipantsByProjectId(@Param("projectId") Long projectId);
+
+    @Query("""
             SELECT u FROM User u
             WHERE :q IS NULL
                OR LOWER(CONCAT(COALESCE(u.prenom,''), ' ', COALESCE(u.nom,''))) LIKE LOWER(CONCAT('%', :q, '%'))

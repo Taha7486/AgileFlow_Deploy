@@ -8,7 +8,7 @@ const SummaryToolbar = ({ projectId }: { projectId: number }) => {
   const [filterAnchor, setFilterAnchor] = useState<HTMLElement | null>(null);
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexShrink: 0 }}>
         <Button size="small" startIcon={<FilterList />} onClick={(event) => setFilterAnchor(event.currentTarget)}>Filtre</Button>
         <Menu anchorEl={filterAnchor} open={Boolean(filterAnchor)} onClose={() => setFilterAnchor(null)}>
           <Box sx={{ px: 2, py: 1.5, width: 220 }}>

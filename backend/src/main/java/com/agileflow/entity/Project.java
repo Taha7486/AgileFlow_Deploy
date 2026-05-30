@@ -20,6 +20,9 @@ public class Project {
     @Builder.Default
     private String issuePrefix = "KAN";
     private String description;
+    @Lob
+    @Column(name = "icon_url", columnDefinition = "LONGTEXT")
+    private String iconUrl;
     private LocalDate dateDebut;
     private LocalDate dateFin;
     @Enumerated(EnumType.STRING)

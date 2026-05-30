@@ -10,10 +10,12 @@ public record ChatContactInvitationDTO(
         String requesterFirstName,
         String requesterLastName,
         String requesterEmail,
+        String requesterAvatarUrl,
         Long recipientId,
         String recipientFirstName,
         String recipientLastName,
         String recipientEmail,
+        String recipientAvatarUrl,
         ChatContactInvitation.InvitationStatus status,
         LocalDateTime createdAt,
         LocalDateTime respondedAt

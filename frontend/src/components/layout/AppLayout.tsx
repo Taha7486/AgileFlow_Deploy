@@ -21,6 +21,7 @@ import {
   AccountTree,
   ChevronLeft,
   Dashboard,
+  Folder,
   History,
   Group,
   Insights,
@@ -43,6 +44,8 @@ import ProjectSelector from './ProjectSelector';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useChat } from '../../hooks/useChat';
 import { useActiveProjectStore } from '../../store/activeProjectStore';
+import { usePresenceStore } from '../../store/presenceStore';
+import { useCurrentRoleBadge } from '../../hooks/useCurrentRoleBadge';
 
 const DRAWER_WIDTH = 250;
 
@@ -57,28 +60,26 @@ const NAV_ITEMS = [
 
 const ADMIN_NAV_ITEMS = [
   { label: 'Dashboard', path: '/admin', icon: <Dashboard /> },
+  { label: 'Projects', path: '/admin/projects', icon: <Folder /> },
   { label: 'Users', path: '/users', icon: <ManageAccounts /> },
   { label: 'Analytics / Reports', path: '/analytics', icon: <Insights /> },
   { label: 'Activity Logs', path: '/activity-logs', icon: <History /> },
   { label: 'Notifications', path: '/notifications', icon: <NotificationsOutlined /> },
 ];
 
-const ROLE_LABELS: Record<string, { label: string; color: 'default' | 'primary' | 'secondary' | 'error' | 'warning' | 'info' | 'success' }> = {
-  ROLE_ADMIN: { label: 'Admin', color: 'error' },
-  ROLE_DEVELOPER: { label: 'Dev', color: 'info' },
-};
-
 const AppLayout = () => {
   const [open, setOpen] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const { user } = useAuth();
-  const { connectionState } = useWebSocket();
+  const { connectionState, publish } = useWebSocket();
   const { totalUnreadCount } = useChat({ isMonitor: true, projectNames: {}, contactNames: {} });
   const activeProject = useActiveProjectStore((state) => state.activeProject);
+  const myVisibilityStatus = usePresenceStore((state) => state.myVisibilityStatus);
   const navigate = useNavigate();
   const location = useLocation();
+  const isPlatformAdmin = user?.role === 'ROLE_ADMIN';
 
-  const roleInfo = ROLE_LABELS[user?.role ?? ''] ?? { label: user?.role ?? '', color: 'default' };
+  const roleInfo = useCurrentRoleBadge();
   const navItems = activeProject
     ? [
         { label: 'Resume', path: `/projects/${activeProject.id}/summary`, icon: <Dashboard /> },
@@ -94,15 +95,36 @@ const AppLayout = () => {
             <IconButton onClick={() => setOpen(!open)} size="small">
               {open ? <ChevronLeft /> : <MenuIcon />}
             </IconButton>
-            <Typography variant="h6" fontWeight={800} color="primary.main" noWrap>
-              AgileFlow
-            </Typography>
-            <Divider orientation="vertical" flexItem sx={{ mx: 1, display: { xs: 'none', sm: 'block' } }} />
-            <ProjectSelector />
+            <Box
+              onClick={() => navigate('/')}
+              sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', minWidth: 0 }}
+            >
+              <Box component="img" src="/agileflow-icon.png" alt="AgileFlow" sx={{ width: 38, height: 38, objectFit: 'contain' }} />
+              <Typography
+                variant="h6"
+                fontWeight={900}
+                noWrap
+                sx={{
+                  display: { xs: 'none', sm: 'block' },
+                  background: 'linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                AgileFlow
+              </Typography>
+            </Box>
+            {!isPlatformAdmin && (
+              <>
+                <Divider orientation="vertical" flexItem sx={{ mx: 1, display: { xs: 'none', sm: 'block' } }} />
+                <ProjectSelector />
+              </>
+            )}
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1.5 }, flexShrink: 0 }}>
-            <VisibilityStatusControl connectionState={connectionState} />
+            <VisibilityStatusControl connectionState={connectionState} publish={publish} />
             <NotificationBell />
             <ProfileMenuButton />
             <Tooltip title="Ouvrir le chat">
@@ -112,7 +134,9 @@ const AppLayout = () => {
                 </Badge>
               </IconButton>
             </Tooltip>
-            <Chip label={roleInfo.label} color={roleInfo.color} size="small" sx={{ display: { xs: 'none', md: 'flex' } }} />
+            <Tooltip title={roleInfo.title}>
+              <Chip label={roleInfo.label} color={roleInfo.color} size="small" sx={{ display: { xs: 'none', md: 'flex' } }} />
+            </Tooltip>
           </Box>
         </Toolbar>
       </AppBar>
@@ -136,7 +160,15 @@ const AppLayout = () => {
       >
         <Toolbar />
         <Box sx={{ px: open ? 2 : 0.5, py: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>
+          <Avatar
+            src={user?.avatarUrl ?? undefined}
+            sx={{
+              bgcolor: 'primary.main',
+              width: 40,
+              height: 40,
+              border: myVisibilityStatus === 'LIVE' ? '2px solid #44b700' : undefined,
+            }}
+          >
             {user?.firstName?.[0] ?? user?.email?.[0]?.toUpperCase()}
           </Avatar>
           {open && (
@@ -149,8 +181,8 @@ const AppLayout = () => {
         <Divider sx={{ borderColor: 'grey.700', mb: 1 }} />
 
         <List dense>
-          {(user?.role === 'ROLE_ADMIN' ? ADMIN_NAV_ITEMS : navItems).map(({ label, path, icon }) => {
-            const active = path === '/dashboard'
+          {(isPlatformAdmin ? ADMIN_NAV_ITEMS : navItems).map(({ label, path, icon }) => {
+            const active = path === '/dashboard' || path === '/admin'
                 ? location.pathname === path
                 : location.pathname === path || location.pathname.startsWith(`${path}/`);
             return (

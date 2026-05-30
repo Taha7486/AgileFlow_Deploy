@@ -1,22 +1,18 @@
 import { useEffect, useState } from 'react';
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Chip,
   CircularProgress,
   Divider,
   Grid,
-  Link,
-  List,
-  ListItem,
-  ListItemText,
   Paper,
   Snackbar,
   TextField,
   Typography,
 } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { fetchMyProfile, updateMyProfile } from '../../api/usersApi';
 import type { UserDetail } from '../../types';
@@ -32,11 +28,20 @@ const roleChip = (role: string) => {
   return <Chip label={cfg.label} color={cfg.color} size="small" />;
 };
 
+const readImageAsDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
 const ProfileAccountTab = () => {
   const { user, token } = useAuth();
   const [profile, setProfile] = useState<UserDetail | null>(null);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +55,7 @@ const ProfileAccountTab = () => {
       setProfile(data);
       setFirstName(data.firstName);
       setLastName(data.lastName);
+      setAvatarUrl(data.avatarUrl ?? null);
     } catch {
       setError('Impossible de charger votre profil.');
     } finally {
@@ -68,12 +74,14 @@ const ProfileAccountTab = () => {
       const updated = await updateMyProfile({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
+        avatarUrl,
       });
       if (user && token) {
         useAuthStore.getState().setAuth(token, {
           ...user,
           firstName: updated.firstName,
           lastName: updated.lastName,
+          avatarUrl: updated.avatarUrl ?? null,
         });
       }
       setSnack('Profil mis a jour.');
@@ -85,7 +93,7 @@ const ProfileAccountTab = () => {
     }
   };
 
-  const dirty = profile && (firstName !== profile.firstName || lastName !== profile.lastName);
+  const dirty = profile && (firstName !== profile.firstName || lastName !== profile.lastName || avatarUrl !== (profile.avatarUrl ?? null));
 
   if (loading) {
     return (
@@ -109,6 +117,38 @@ const ProfileAccountTab = () => {
       </Typography>
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar src={avatarUrl ?? undefined} sx={{ width: 72, height: 72, bgcolor: 'primary.main', fontSize: 24, fontWeight: 900 }}>
+              {(firstName[0] ?? profile.email[0] ?? '?').toUpperCase()}
+            </Avatar>
+            <Box>
+              <Button component="label" variant="outlined" sx={{ textTransform: 'none', fontWeight: 700 }}>
+                {avatarUrl ? 'Modifier la photo' : 'Ajouter une photo'}
+                <input
+                  hidden
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    void readImageAsDataUrl(file)
+                      .then(setAvatarUrl)
+                      .catch(() => setSnack('Impossible de lire cette image.'));
+                  }}
+                />
+              </Button>
+              {avatarUrl && (
+                <Button color="error" onClick={() => setAvatarUrl(null)} sx={{ ml: 1, textTransform: 'none' }}>
+                  Retirer
+                </Button>
+              )}
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.75 }}>
+                Cette photo apparaitra dans le profil, les assignations et les commentaires.
+              </Typography>
+            </Box>
+          </Box>
+        </Grid>
         <Grid item xs={12} sm={6}>
           <TextField
             label="Prenom"
@@ -148,6 +188,7 @@ const ProfileAccountTab = () => {
           onClick={() => {
             setFirstName(profile.firstName);
             setLastName(profile.lastName);
+            setAvatarUrl(profile.avatarUrl ?? null);
           }}
         >
           Annuler
@@ -166,29 +207,6 @@ const ProfileAccountTab = () => {
           <Typography>{formatDateTime(profile.lastLogin)}</Typography>
         </Grid>
       </Grid>
-
-      <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
-        Mes equipes
-      </Typography>
-      {profile.teams.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">
-          Vous n'appartenez a aucune equipe pour le moment.
-        </Typography>
-      ) : (
-        <List dense disablePadding>
-          {profile.teams.map((t) => (
-            <ListItem key={t.teamId} disablePadding sx={{ py: 0.5 }}>
-              <ListItemText
-                primary={
-                  <Link component={RouterLink} to={`/teams/${t.teamId}`} underline="hover" fontWeight={600}>
-                    {t.teamName}
-                  </Link>
-                }
-              />
-            </ListItem>
-          ))}
-        </List>
-      )}
 
       <Snackbar open={snack != null} autoHideDuration={4000} onClose={() => setSnack(null)} message={snack} />
     </Paper>

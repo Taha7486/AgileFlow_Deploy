@@ -8,5 +8,6 @@ public record ProjectMemberDTO(
         String role,
         String projectRole,
         boolean owner,
-        String joinedAt
+        String joinedAt,
+        String avatarUrl
 ) {}

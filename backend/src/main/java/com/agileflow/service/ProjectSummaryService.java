@@ -157,7 +157,7 @@ public class ProjectSummaryService {
                 .map(entry -> {
                     User user = entry.getKey();
                     long count = entry.getValue();
-                    return new WorkloadDto(user.getId(), user.getNom(), user.getPrenom(), initials(user), avatarColor(user.getEmail()), count, percent(count, totalAssigned));
+                    return new WorkloadDto(user.getId(), user.getNom(), user.getPrenom(), initials(user), avatarColor(user.getEmail()), user.getAvatarUrl(), count, percent(count, totalAssigned));
                 })
                 .sorted(Comparator.comparingLong(WorkloadDto::tachesAssignees).reversed())
                 .toList();
@@ -185,6 +185,7 @@ public class ProjectSummaryService {
                 actor != null ? ((safe(actor.getPrenom()) + " " + safe(actor.getNom())).trim()) : "Systeme",
                 actor != null ? initials(actor) : "?",
                 actor != null ? avatarColor(actor.getEmail()) : "#6B778C",
+                actor != null ? actor.getAvatarUrl() : null,
                 actionLabel(log.getAction()),
                 fieldLabel(log),
                 "sur",

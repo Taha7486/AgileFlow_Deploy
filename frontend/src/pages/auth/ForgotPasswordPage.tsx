@@ -1,23 +1,7 @@
-import { useEffect, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  IconButton,
-  InputAdornment,
-  Paper,
-  TextField,
-  Typography,
-} from '@mui/material';
-import {
-  LockResetOutlined,
-  MarkEmailReadOutlined,
-  PinOutlined,
-  Refresh,
-  Visibility,
-  VisibilityOff,
-} from '@mui/icons-material';
+import React, { useEffect, useState } from 'react';
+import { Alert, CircularProgress, IconButton } from '@mui/material';
+import { Refresh, Visibility, VisibilityOff } from '@mui/icons-material';
+import { KeyRound, Lock, Mail } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api/axiosInterceptor';
 import {
@@ -26,6 +10,7 @@ import {
   passwordMeetsPolicy,
   passwordStrengthLabel,
 } from '../../utils/passwordPolicy';
+import './AuthPages.css';
 
 const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
@@ -47,12 +32,13 @@ const ForgotPasswordPage = () => {
 
   const checks = getPasswordChecks(newPassword);
   const strength = passwordStrengthLabel(newPassword);
+  const resetDone = success.includes('reinitialise');
 
   useEffect(() => {
-    if (step !== 'password' || !success.includes('reinitialise')) return;
+    if (step !== 'password' || !resetDone) return;
     const timer = window.setTimeout(() => navigate('/login', { replace: true }), 2000);
     return () => window.clearTimeout(timer);
-  }, [step, success, navigate]);
+  }, [step, resetDone, navigate]);
 
   const handleRequestCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,181 +160,176 @@ const ForgotPasswordPage = () => {
 
   const subtitle =
     step === 'email'
-      ? 'Recevez un code par email pour reinitialiser votre acces'
+      ? 'Recevez un code par email pour reinitialiser votre acces.'
       : step === 'otp'
         ? `Code envoye a ${email}`
-        : success.includes('reinitialise')
+        : resetDone
           ? 'Redirection vers la connexion...'
-          : 'Choisissez un nouveau mot de passe securise';
+          : 'Choisissez un nouveau mot de passe securise.';
 
   const renderEmailStep = () => (
-    <Box component="form" onSubmit={handleRequestCode} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <TextField
-        label="Adresse email"
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-        fullWidth
-        autoComplete="email"
-      />
-      <Typography variant="body2" color="text.secondary">
-        Nous vous enverrons un code a 6 chiffres par email (valide 10 minutes).
-      </Typography>
-      <Button type="submit" variant="contained" size="large" fullWidth disabled={loading} sx={{ py: 1.5 }}>
-        {loading ? <CircularProgress size={24} color="inherit" /> : 'Envoyer le code'}
-      </Button>
-    </Box>
+    <form className="auth-form" onSubmit={handleRequestCode}>
+      <div className="auth-field">
+        <label htmlFor="forgot-email">Adresse email</label>
+        <div className="auth-input-wrap">
+          <span className="auth-input-icon"><Mail size={16} /></span>
+          <input
+            id="forgot-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="vous@exemple.com"
+            autoComplete="email"
+            required
+          />
+        </div>
+        <p className="auth-helper">Nous vous enverrons un code a 6 chiffres valide 10 minutes.</p>
+      </div>
+
+      <button type="submit" className="auth-submit" disabled={loading}>
+        {loading ? <CircularProgress size={20} color="inherit" /> : 'Envoyer le code'}
+      </button>
+    </form>
   );
 
   const renderOtpStep = () => (
-    <Box component="form" onSubmit={handleVerifyOtp} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <TextField
-        label="Code recu par email"
-        value={otp}
-        onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-        required
-        fullWidth
-        autoFocus
-        inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 6 }}
-        helperText="Code a 6 chiffres"
-      />
-      <Button
-        type="submit"
-        variant="contained"
-        size="large"
-        fullWidth
-        disabled={loading || otp.length !== 6}
-        sx={{ py: 1.5 }}
-      >
-        {loading ? <CircularProgress size={24} color="inherit" /> : 'Verifier le code'}
-      </Button>
-      <Button type="button" variant="text" startIcon={<Refresh />} disabled={resendLoading} onClick={handleResend}>
-        {resendLoading ? 'Envoi...' : 'Renvoyer le code'}
-      </Button>
-      <Button type="button" variant="text" onClick={resetToEmail}>
-        Changer d&apos;email
-      </Button>
-    </Box>
+    <form className="auth-form" onSubmit={handleVerifyOtp}>
+      <div className="auth-field">
+        <label htmlFor="forgot-otp">Code recu par email</label>
+        <div className="auth-input-wrap">
+          <span className="auth-input-icon"><KeyRound size={16} /></span>
+          <input
+            id="forgot-otp"
+            value={otp}
+            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder="123456"
+            inputMode="numeric"
+            maxLength={6}
+            autoFocus
+            required
+          />
+        </div>
+        <p className="auth-helper">Code a 6 chiffres.</p>
+      </div>
+
+      <button type="submit" className="auth-submit" disabled={loading || otp.length !== 6}>
+        {loading ? <CircularProgress size={20} color="inherit" /> : 'Verifier le code'}
+      </button>
+      <button type="button" className="auth-secondary-action" disabled={resendLoading} onClick={handleResend}>
+        {resendLoading ? <CircularProgress size={18} /> : <Refresh fontSize="small" />} Renvoyer le code
+      </button>
+      <button type="button" className="auth-secondary-action" onClick={resetToEmail}>
+        Changer d'email
+      </button>
+    </form>
   );
 
   const renderPasswordStep = () => (
-    <Box component="form" onSubmit={handleReset} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <TextField
-        label="Nouveau mot de passe"
-        type={showPass ? 'text' : 'password'}
-        value={newPassword}
-        onChange={(e) => setNewPassword(e.target.value)}
-        required
-        fullWidth
-        autoComplete="new-password"
-        helperText={PASSWORD_REQUIREMENTS_TEXT}
-        InputProps={{
-          endAdornment: (
-            <InputAdornment position="end">
-              <IconButton onClick={() => setShowPass(!showPass)} edge="end">
-                {showPass ? <VisibilityOff /> : <Visibility />}
-              </IconButton>
-            </InputAdornment>
-          ),
-        }}
-      />
-      {newPassword && (
-        <Typography variant="caption" color={passwordMeetsPolicy(newPassword) ? 'success.main' : 'text.secondary'}>
-          Force : {strength} —{' '}
-          {[
-            checks.length && '8+ car.',
-            checks.upper && 'majuscule',
-            checks.lower && 'minuscule',
-            checks.digit && 'chiffre',
-            checks.special && 'special',
-          ]
-            .filter(Boolean)
-            .join(', ')}
-        </Typography>
-      )}
-      <TextField
-        label="Confirmer le mot de passe"
-        type={showConfirm ? 'text' : 'password'}
-        value={confirmPassword}
-        onChange={(e) => setConfirmPassword(e.target.value)}
-        required
-        fullWidth
-        autoComplete="new-password"
-        error={confirmPassword.length > 0 && confirmPassword !== newPassword}
-        helperText={
-          confirmPassword.length > 0 && confirmPassword !== newPassword
-            ? 'Les mots de passe ne correspondent pas'
-            : ' '
-        }
-        InputProps={{
-          endAdornment: (
-            <InputAdornment position="end">
-              <IconButton onClick={() => setShowConfirm(!showConfirm)} edge="end">
-                {showConfirm ? <VisibilityOff /> : <Visibility />}
-              </IconButton>
-            </InputAdornment>
-          ),
-        }}
-      />
-      <Button
+    <form className="auth-form" onSubmit={handleReset}>
+      <div className="auth-field">
+        <label htmlFor="forgot-new-password">Nouveau mot de passe</label>
+        <div className="auth-input-wrap">
+          <span className="auth-input-icon"><Lock size={16} /></span>
+          <input
+            id="forgot-new-password"
+            type={showPass ? 'text' : 'password'}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Votre nouveau mot de passe"
+            autoComplete="new-password"
+            required
+          />
+          <IconButton className="auth-eye-button" size="small" onClick={() => setShowPass((current) => !current)}>
+            {showPass ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+          </IconButton>
+        </div>
+        <p className="auth-helper">{PASSWORD_REQUIREMENTS_TEXT}</p>
+        {newPassword && (
+          <p className={`auth-helper ${passwordMeetsPolicy(newPassword) ? '' : 'error'}`}>
+            Force : {strength} - {[checks.length && '8+ car.', checks.upper && 'majuscule', checks.lower && 'minuscule', checks.digit && 'chiffre', checks.special && 'special'].filter(Boolean).join(', ')}
+          </p>
+        )}
+      </div>
+
+      <div className="auth-field">
+        <label htmlFor="forgot-confirm-password">Confirmer le mot de passe</label>
+        <div className="auth-input-wrap">
+          <span className="auth-input-icon"><Lock size={16} /></span>
+          <input
+            id="forgot-confirm-password"
+            type={showConfirm ? 'text' : 'password'}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Confirmez le mot de passe"
+            autoComplete="new-password"
+            required
+          />
+          <IconButton className="auth-eye-button" size="small" onClick={() => setShowConfirm((current) => !current)}>
+            {showConfirm ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+          </IconButton>
+        </div>
+        {confirmPassword.length > 0 && confirmPassword !== newPassword && (
+          <p className="auth-helper error">Les mots de passe ne correspondent pas.</p>
+        )}
+      </div>
+
+      <button
         type="submit"
-        variant="contained"
-        size="large"
-        fullWidth
-        disabled={
-          loading ||
-          success.includes('reinitialise') ||
-          !passwordMeetsPolicy(newPassword) ||
-          newPassword !== confirmPassword
-        }
-        sx={{ py: 1.5 }}
+        className="auth-submit"
+        disabled={loading || resetDone || !passwordMeetsPolicy(newPassword) || newPassword !== confirmPassword}
       >
-        {loading ? <CircularProgress size={24} color="inherit" /> : 'Reinitialiser le mot de passe'}
-      </Button>
-    </Box>
+        {loading ? <CircularProgress size={20} color="inherit" /> : 'Reinitialiser le mot de passe'}
+      </button>
+    </form>
   );
 
-  const StepIcon = step === 'otp' ? PinOutlined : step === 'password' && success.includes('reinitialise') ? MarkEmailReadOutlined : LockResetOutlined;
-
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', bgcolor: 'grey.100' }}>
-      <Paper elevation={4} sx={{ p: 5, width: '100%', maxWidth: 440, borderRadius: 3 }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
-          <Box
-            sx={{
-              bgcolor: success.includes('reinitialise') ? 'success.main' : 'primary.main',
-              borderRadius: '50%',
-              p: 1.5,
-              mb: 2,
-            }}
-          >
-            <StepIcon sx={{ color: 'white' }} />
-          </Box>
-          <Typography variant="h5" fontWeight={700}>
-            {title}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" mt={0.5} textAlign="center">
-            {subtitle}
-          </Typography>
-        </Box>
+    <main className="auth-shell auth-forgot">
+      <section className="auth-panel-dark">
+        <div className="auth-dark-content">
+          <div className="auth-brand-block">
+            <img src="/agileflow-icon.png" alt="AgileFlow" className="auth-logo" />
+            <span className="auth-brand-name">AgileFlow</span>
+          </div>
 
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+          <h1>Recuperez votre acces</h1>
+          <p>Un parcours securise en trois etapes pour verifier votre email et definir un nouveau mot de passe.</p>
 
-        {step === 'email' && renderEmailStep()}
-        {step === 'otp' && renderOtpStep()}
-        {step === 'password' && !success.includes('reinitialise') && renderPasswordStep()}
+          <div className="auth-steps">
+            {['Email', 'Code OTP', 'Nouveau mot de passe'].map((label, index) => {
+              const activeIndex = step === 'email' ? 0 : step === 'otp' ? 1 : 2;
+              return (
+                <div key={label} className={`auth-step ${index <= activeIndex ? 'active' : ''}`}>
+                  <span className="auth-step-marker">{index + 1}</span>
+                  <span>{label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
 
-        {!success.includes('reinitialise') && (
-          <Typography variant="body2" align="center" sx={{ mt: 3 }}>
-            <Link to="/login" style={{ color: '#1976d2', textDecoration: 'none', fontWeight: 600 }}>
-              Retour a la connexion
-            </Link>
-          </Typography>
-        )}
-      </Paper>
-    </Box>
+      <section className="auth-panel-light">
+        <div className="auth-card">
+          <Link className="auth-home-link" to="/">Retour a l'accueil</Link>
+          <div className="auth-card-header">
+            <h2>{title}</h2>
+            <p>{subtitle}</p>
+          </div>
+
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          {success && <Alert severity={resetDone ? 'success' : 'info'} sx={{ mb: 2 }}>{success}</Alert>}
+
+          {step === 'email' && renderEmailStep()}
+          {step === 'otp' && renderOtpStep()}
+          {step === 'password' && !resetDone && renderPasswordStep()}
+
+          <div className="auth-footer-link">
+            <Link className="auth-link" to="/login">Retour a la connexion</Link>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 };
 

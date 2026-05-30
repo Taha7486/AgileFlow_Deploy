@@ -7,9 +7,12 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 public interface GitHubTaskBranchRepository extends JpaRepository<GitHubTaskBranch, Long> {
     List<GitHubTaskBranch> findByTask_Id(Long taskId);
+
+    void deleteByTask_IdIn(Collection<Long> taskIds);
 
     Optional<GitHubTaskBranch> findByTask_IdAndBranchName(Long taskId, String branchName);
 

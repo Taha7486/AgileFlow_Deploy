@@ -186,7 +186,7 @@ public class ChatService {
                 message.getId(),
                 message.getSender().getId(),
                 message.getSender().getPrenom() + " " + message.getSender().getNom(),
-                null,
+                message.getSender().getAvatarUrl(),
                 message.getChannelType(),
                 message.getProject() != null ? message.getProject().getId() : null,
                 message.getRecipient() != null ? message.getRecipient().getId() : null,

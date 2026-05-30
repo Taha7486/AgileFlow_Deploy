@@ -1,7 +1,18 @@
 import { useEffect, useState } from 'react';
 import {
-  Box, Typography, Button, Paper, Chip, CircularProgress, Alert, Grid, List, ListItem, ListItemText, Divider,
+  Alert,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Divider,
+  Grid,
+  List,
+  ListItem,
+  ListItemText,
+  Paper,
   Snackbar,
+  Typography,
 } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -13,7 +24,7 @@ import AddEditUserModal from '../../components/users/AddEditUserModal';
 
 const roleChip = (role: string) => {
   const color = role === 'ROLE_ADMIN' ? 'error' : 'info';
-  const label = role === 'ROLE_ADMIN' ? 'Admin' : 'Développeur';
+  const label = role === 'ROLE_ADMIN' ? 'Admin' : 'Developpeur';
   return <Chip label={label} color={color} />;
 };
 
@@ -37,7 +48,7 @@ const UserProfilePage = () => {
       const u = await fetchUserById(Number(id));
       setData(u);
     } catch {
-      setError('Utilisateur introuvable ou erreur réseau.');
+      setError('Utilisateur introuvable ou erreur reseau.');
       setData(null);
     } finally {
       setLoading(false);
@@ -45,12 +56,14 @@ const UserProfilePage = () => {
   };
 
   useEffect(() => {
-    load();
+    void load();
   }, [id]);
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}><CircularProgress /></Box>
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
+        <CircularProgress />
+      </Box>
     );
   }
 
@@ -61,7 +74,7 @@ const UserProfilePage = () => {
   return (
     <Box sx={{ maxWidth: 900 }}>
       <Button startIcon={<ArrowBack />} onClick={() => navigate('/users')} sx={{ mb: 2 }}>
-        Retour à la liste
+        Retour a la liste
       </Button>
 
       <Paper sx={{ p: 3, borderRadius: 2 }} elevation={0}>
@@ -84,11 +97,11 @@ const UserProfilePage = () => {
 
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6}>
-            <Typography variant="caption" color="text.secondary">Créé le</Typography>
+            <Typography variant="caption" color="text.secondary">Cree le</Typography>
             <Typography>{formatDateTime(data.createdAt)}</Typography>
           </Grid>
           <Grid item xs={12} sm={6}>
-            <Typography variant="caption" color="text.secondary">Dernière connexion</Typography>
+            <Typography variant="caption" color="text.secondary">Derniere connexion</Typography>
             <Typography>{formatDateTime(data.lastLogin)}</Typography>
           </Grid>
           <Grid item xs={12} sm={6}>
@@ -97,9 +110,9 @@ const UserProfilePage = () => {
           </Grid>
         </Grid>
 
-        <Typography variant="subtitle1" fontWeight={700} sx={{ mt: 3, mb: 1 }}>Équipes</Typography>
+        <Typography variant="subtitle1" fontWeight={700} sx={{ mt: 3, mb: 1 }}>Equipes</Typography>
         {data.teams.length === 0 ? (
-          <Typography color="text.secondary">Aucune équipe.</Typography>
+          <Typography color="text.secondary">Aucune equipe.</Typography>
         ) : (
           <List dense>
             {data.teams.map((t) => (

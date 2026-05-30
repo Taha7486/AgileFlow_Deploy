@@ -1,8 +1,18 @@
 import axiosInstance from './axiosInstance';
 import type { CreateUserPayload, UpdateUserPayload, UserDetail, UserListItem } from '../types';
 
-export const fetchUsers = async (q?: string) => {
-  const { data } = await axiosInstance.get<UserListItem[]>('/users', { params: q ? { q } : {} });
+type FetchUsersParams = {
+  q?: string;
+  projectId?: number;
+};
+
+export const fetchUsers = async (paramsOrQuery?: string | FetchUsersParams) => {
+  const params = typeof paramsOrQuery === 'string'
+    ? (paramsOrQuery ? { q: paramsOrQuery } : {})
+    : Object.fromEntries(
+        Object.entries(paramsOrQuery ?? {}).filter(([, value]) => value !== undefined && value !== null && value !== ''),
+      );
+  const { data } = await axiosInstance.get<UserListItem[]>('/users', { params });
   return data;
 };
 
@@ -16,7 +26,7 @@ export const fetchMyProfile = async () => {
   return data;
 };
 
-export const updateMyProfile = async (payload: { firstName: string; lastName: string }) => {
+export const updateMyProfile = async (payload: { firstName: string; lastName: string; avatarUrl?: string | null }) => {
   const { data } = await axiosInstance.put<UserListItem>('/users/me', payload);
   return data;
 };

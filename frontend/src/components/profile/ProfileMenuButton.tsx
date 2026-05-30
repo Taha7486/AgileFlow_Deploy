@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   Avatar,
   Box,
   Chip,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   Divider,
   IconButton,
   ListItemIcon,
@@ -12,6 +15,7 @@ import {
   Typography,
 } from '@mui/material';
 import {
+  Close,
   Logout,
   NotificationsOutlined,
   PersonOutline,
@@ -19,16 +23,18 @@ import {
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import NotificationPreferences from '../users/NotificationPreferences';
+import ProfilePresencePanel from './ProfilePresencePanel';
+import ProfileAccountTab from '../../pages/profile/ProfileAccountTab';
+import { usePresenceStore } from '../../store/presenceStore';
+import { useCurrentRoleBadge } from '../../hooks/useCurrentRoleBadge';
 
-const ROLE_LABELS: Record<string, { label: string; color: 'default' | 'error' | 'warning' | 'info' }> = {
-  ROLE_ADMIN: { label: 'Admin', color: 'error' },
-  ROLE_DEVELOPER: { label: 'Dev', color: 'info' },
-};
+type ProfilePanel = 'account' | 'notifications' | 'presence';
 
-const LINKS = [
-  { path: '/profile/account', label: 'Mon compte', icon: <PersonOutline fontSize="small" /> },
-  { path: '/profile/notifications', label: 'Notifications', icon: <NotificationsOutlined fontSize="small" /> },
-  { path: '/profile/presence', label: 'Presence', icon: <RadioButtonChecked fontSize="small" /> },
+const LINKS: Array<{ panel: ProfilePanel; label: string; icon: ReactNode }> = [
+  { panel: 'account', label: 'Mon compte', icon: <PersonOutline fontSize="small" /> },
+  { panel: 'notifications', label: 'Notifications', icon: <NotificationsOutlined fontSize="small" /> },
+  { panel: 'presence', label: 'Presence', icon: <RadioButtonChecked fontSize="small" /> },
 ];
 
 const ProfileMenuButton = () => {
@@ -36,22 +42,31 @@ const ProfileMenuButton = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [activePanel, setActivePanel] = useState<ProfilePanel | null>(null);
+  const myVisibilityStatus = usePresenceStore((state) => state.myVisibilityStatus);
 
   const open = Boolean(anchorEl);
-  const role = ROLE_LABELS[user?.role ?? ''] ?? { label: user?.role ?? '', color: 'default' as const };
+  const role = useCurrentRoleBadge();
   const initials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? user?.email?.[0]?.toUpperCase() ?? ''}`;
   const isProfilePage = location.pathname.startsWith('/profile');
+  const isLive = myVisibilityStatus === 'LIVE';
 
-  const goTo = (path: string) => {
+  const openPanel = (panel: ProfilePanel) => {
     setAnchorEl(null);
-    navigate(path);
+    setActivePanel(panel);
   };
 
   const handleLogout = () => {
     setAnchorEl(null);
     logout();
-    navigate('/login', { replace: true });
+    navigate('/', { replace: true });
   };
+
+  const panelTitle = activePanel === 'account'
+    ? 'Mon compte'
+    : activePanel === 'notifications'
+      ? 'Notifications'
+      : 'Presence';
 
   return (
     <>
@@ -63,11 +78,11 @@ const ProfileMenuButton = () => {
           sx={{
             p: 0.25,
             border: '2px solid',
-            borderColor: isProfilePage ? 'primary.main' : 'transparent',
+            borderColor: isLive ? '#44b700' : isProfilePage ? 'primary.main' : 'transparent',
             borderRadius: '50%',
           }}
         >
-          <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 13, fontWeight: 700 }}>
+          <Avatar src={user?.avatarUrl ?? undefined} sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 13, fontWeight: 700 }}>
             {initials}
           </Avatar>
         </IconButton>
@@ -92,16 +107,18 @@ const ProfileMenuButton = () => {
           <Typography variant="body2" color="text.secondary" noWrap>
             {user?.email}
           </Typography>
-          <Chip label={role.label} color={role.color} size="small" sx={{ mt: 1 }} />
+          <Tooltip title={role.title}>
+            <Chip label={role.label} color={role.color} size="small" sx={{ mt: 1 }} />
+          </Tooltip>
         </Box>
 
         <Divider />
 
         {LINKS.map((link) => (
           <MenuItem
-            key={link.path}
-            selected={location.pathname === link.path}
-            onClick={() => goTo(link.path)}
+            key={link.panel}
+            selected={location.pathname === `/profile/${link.panel}`}
+            onClick={() => openPanel(link.panel)}
           >
             <ListItemIcon sx={{ minWidth: 36 }}>{link.icon}</ListItemIcon>
             {link.label}
@@ -117,6 +134,32 @@ const ProfileMenuButton = () => {
           Se deconnecter
         </MenuItem>
       </Menu>
+
+      <Dialog
+        open={activePanel !== null}
+        onClose={() => setActivePanel(null)}
+        fullWidth
+        maxWidth={activePanel === 'account' ? 'md' : 'sm'}
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 1.5 }}>
+          <Typography fontWeight={900}>{panelTitle}</Typography>
+          <IconButton size="small" onClick={() => setActivePanel(null)} aria-label="Fermer">
+            <Close fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ bgcolor: '#f8fafc', p: { xs: 2, md: 3 } }}>
+          {activePanel === 'account' && <ProfileAccountTab />}
+          {activePanel === 'notifications' && (
+            <NotificationPreferences
+              title="Notifications par email"
+              description="Choisissez les evenements pour lesquels AgileFlow vous envoie un email."
+              embedded
+            />
+          )}
+          {activePanel === 'presence' && <ProfilePresencePanel />}
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
