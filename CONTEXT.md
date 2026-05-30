@@ -435,6 +435,8 @@ The active project header controls project-scoped pages.
 - Landing CTAs for create project, start free and connect GitHub open the
   project creation flow for authenticated users instead of redirecting to
   registration.
+- The landing demo buttons open `frontend/public/Demo_AgileFlow.mp4` in an
+  overlay panel.
 - `/login` and `/register` use the same branded visual language as the landing:
   dark gradient brand panel, clear form card, Google/GitHub OAuth actions and
   responsive one-column mobile layout.
@@ -447,7 +449,10 @@ The active project header controls project-scoped pages.
 
 - Displays AgileFlow branding.
 - Displays active project selector.
-- Project selector supports create/edit/delete from the dropdown/menu.
+- Project selector supports create/edit/archive from the dropdown/menu.
+- User-facing delete actions archive projects. Archived projects disappear from
+  user spaces and are blocked by project access checks; platform admins can
+  archive/unarchive from Admin Projects.
 - Project creation/edit includes the task prefix used for keys like `KAN-37`.
 - Project creation supports invited email chips and optional GitHub repository
   connection; those actions run after the backend project is created.
@@ -603,6 +608,8 @@ Backend:
   from `/development`, not from the project summary.
 - Task keys use the project's configurable prefix. Examples: `KAN-37`,
   `GRF-37`, `#37` and `task/37` can link GitHub activity to task id `37`.
+- GitHub UTC timestamps are converted to the server local zone before relative
+  display in the frontend.
 
 Synchronization rules:
 
@@ -641,6 +648,9 @@ Frontend:
 - Page: `frontend/src/pages/development/DevelopmentPage.tsx`.
 - `DevelopmentPage` contains the compact GitHub integration panel, a single
   manual sync action, project PRs, active branches and recent commits.
+- After creating a branch or PR, `githubStore` updates the task development
+  cache optimistically and refreshes the panel/project development data in the
+  background.
 
 ### Activity Logs
 

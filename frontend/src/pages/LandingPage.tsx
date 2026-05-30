@@ -18,13 +18,13 @@ import {
   Share2,
   Users,
 } from 'lucide-react';
+import { connectGitHub } from '../api/github';
 import { createProject, fetchProjects, inviteProjectMember } from '../api/projectsApi';
 import { fetchTeams } from '../api/teamsApi';
-import { connectGitHub } from '../api/github';
-import CreateProjectModal, { type ProjectCreationOptions } from '../components/projects/CreateProjectModal';
 import ChatPanel from '../components/chat/ChatPanel';
 import NotificationBell from '../components/notifications/NotificationBell';
 import ProfileMenuButton from '../components/profile/ProfileMenuButton';
+import CreateProjectModal, { type ProjectCreationOptions } from '../components/projects/CreateProjectModal';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../hooks/useChat';
 import { useCurrentRoleBadge } from '../hooks/useCurrentRoleBadge';
@@ -169,11 +169,14 @@ const LandingPage = () => {
   const [teams, setTeams] = useState<TeamListItem[]>([]);
   const [hasProjects, setHasProjects] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
   const { totalUnreadCount } = useChat({ isMonitor: true, projectNames: {}, contactNames: {} });
   const roleInfo = useCurrentRoleBadge();
 
   const isAuthenticated = Boolean(token && user);
   const isAdmin = user?.role === 'ROLE_ADMIN';
+
+  const openDemoVideo = () => setVideoOpen(true);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -342,7 +345,7 @@ const LandingPage = () => {
                   Creer un projet gratuitement <ArrowRight size={16} />
                 </button>
               )}
-              <button type="button" className="landing-button landing-button-secondary" onClick={() => document.getElementById('github')?.scrollIntoView({ behavior: 'smooth' })}>
+              <button type="button" className="landing-button landing-button-secondary" onClick={openDemoVideo}>
                 Voir une demo
               </button>
             </div>
@@ -462,7 +465,7 @@ const LandingPage = () => {
                 <span className="landing-gradient-text">Commencer gratuitement</span>
               </button>
             )}
-            <button type="button" className="landing-button landing-button-outline-white" onClick={() => document.getElementById('github')?.scrollIntoView({ behavior: 'smooth' })}>
+            <button type="button" className="landing-button landing-button-outline-white" onClick={openDemoVideo}>
               Voir la demo
             </button>
           </div>
@@ -485,6 +488,23 @@ const LandingPage = () => {
         onSubmit={handleCreateProject}
       />
       <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
+      {videoOpen && (
+        <div className="landing-video-overlay" role="dialog" aria-modal="true" aria-label="Video demo AgileFlow">
+          <button type="button" className="landing-video-backdrop" aria-label="Fermer la video" onClick={() => setVideoOpen(false)} />
+          <div className="landing-video-panel">
+            <div className="landing-video-header">
+              <div>
+                <h3>Demo AgileFlow</h3>
+                <p>Decouvrez les principaux flux de la plateforme.</p>
+              </div>
+              <button type="button" className="landing-video-close" aria-label="Fermer la video" onClick={() => setVideoOpen(false)}>
+                x
+              </button>
+            </div>
+            <video className="landing-video-player" src="/Demo_AgileFlow.mp4" controls autoPlay />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

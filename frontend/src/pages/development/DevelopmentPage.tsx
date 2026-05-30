@@ -47,7 +47,7 @@ import GitHubIntegrationPanel from '../../components/github/GitHubIntegrationPan
 
 const formatRelative = (iso: string | null) => {
   if (!iso) return '';
-  const diff = Date.now() - new Date(iso).getTime();
+  const diff = Math.max(0, Date.now() - new Date(iso).getTime());
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(hours / 24);
   if (hours < 1) return "a l'instant";

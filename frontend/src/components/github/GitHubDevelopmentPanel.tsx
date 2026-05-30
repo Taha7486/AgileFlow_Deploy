@@ -51,7 +51,7 @@ interface Props {
 
 const formatRelative = (iso: string | null) => {
   if (!iso) return '';
-  const diff = Date.now() - new Date(iso).getTime();
+  const diff = Math.max(0, Date.now() - new Date(iso).getTime());
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(hours / 24);
   if (hours < 1) return "a l'instant";
@@ -241,10 +241,10 @@ const GitHubDevelopmentPanel = ({ taskId, compact = false }: Props) => {
     setLoadingCreate(true);
     try {
       await createBranch(taskId, branchName.trim(), fromBranch);
-      await fetchTaskDevelopmentPanel(taskId);
-      if (activeProject?.id) await fetchProjectDevelopment(activeProject.id);
       setToast({ message: 'Branche creee avec succes', severity: 'success' });
       setCreateOpen(false);
+      void fetchTaskDevelopmentPanel(taskId);
+      if (activeProject?.id) void fetchProjectDevelopment(activeProject.id);
     } catch (error) {
       setToast({ message: getErrorMessage(error), severity: 'error' });
     } finally {
@@ -265,10 +265,10 @@ const GitHubDevelopmentPanel = ({ taskId, compact = false }: Props) => {
     setLoadingPr(true);
     try {
       await createPullRequest(taskId, prTitle.trim(), prBody.trim(), prHeadBranch.trim(), prBaseBranch.trim());
-      await fetchTaskDevelopmentPanel(taskId);
-      if (activeProject?.id) await fetchProjectDevelopment(activeProject.id);
       setToast({ message: 'Pull request creee avec succes', severity: 'success' });
       setPrOpen(false);
+      void fetchTaskDevelopmentPanel(taskId);
+      if (activeProject?.id) void fetchProjectDevelopment(activeProject.id);
     } catch (error) {
       setToast({ message: getErrorMessage(error), severity: 'error' });
     } finally {

@@ -46,6 +46,12 @@ const getErrorMessage = (error: unknown) => {
   return error instanceof Error ? error.message : 'Erreur GitHub';
 };
 
+const appendUniqueBy = <T>(items: T[], item: T, getKey: (value: T) => string | number | null | undefined) => {
+  const key = getKey(item);
+  if (key == null || items.some((current) => getKey(current) === key)) return items;
+  return [...items, item];
+};
+
 export const useGitHubStore = create<GitHubState>((set, get) => ({
   integration: null,
   pullRequests: [],
@@ -148,9 +154,23 @@ export const useGitHubStore = create<GitHubState>((set, get) => ({
   createBranch: async (taskId, branchName, fromBranch) => {
     const branch = await createBranchForTask(taskId, { branchName, fromBranch });
     set((state) => {
-      const next = { ...state.taskDevelopmentPanel };
-      delete next[taskId];
-      return { taskDevelopmentPanel: next, projectDevelopment: null };
+      const panel = state.taskDevelopmentPanel[taskId];
+      const taskDevelopmentPanel = panel
+        ? {
+            ...state.taskDevelopmentPanel,
+            [taskId]: {
+              ...panel,
+              branches: appendUniqueBy(panel.branches, branch, (item) => item.name),
+            },
+          }
+        : state.taskDevelopmentPanel;
+      const projectDevelopment = state.projectDevelopment
+        ? {
+            ...state.projectDevelopment,
+            activeBranches: appendUniqueBy(state.projectDevelopment.activeBranches, branch, (item) => item.name),
+          }
+        : state.projectDevelopment;
+      return { taskDevelopmentPanel, projectDevelopment };
     });
     return branch;
   },
@@ -158,9 +178,23 @@ export const useGitHubStore = create<GitHubState>((set, get) => ({
   createPullRequest: async (taskId, title, body, headBranch, baseBranch) => {
     const pullRequest = await createPullRequestForTask(taskId, { title, body, headBranch, baseBranch });
     set((state) => {
-      const next = { ...state.taskDevelopmentPanel };
-      delete next[taskId];
-      return { taskDevelopmentPanel: next, projectDevelopment: null };
+      const panel = state.taskDevelopmentPanel[taskId];
+      const taskDevelopmentPanel = panel
+        ? {
+            ...state.taskDevelopmentPanel,
+            [taskId]: {
+              ...panel,
+              pullRequests: appendUniqueBy(panel.pullRequests, pullRequest, (item) => item.number),
+            },
+          }
+        : state.taskDevelopmentPanel;
+      const projectDevelopment = state.projectDevelopment
+        ? {
+            ...state.projectDevelopment,
+            openPullRequests: appendUniqueBy(state.projectDevelopment.openPullRequests, pullRequest, (item) => item.number),
+          }
+        : state.projectDevelopment;
+      return { taskDevelopmentPanel, projectDevelopment };
     });
     return pullRequest;
   },

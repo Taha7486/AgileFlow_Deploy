@@ -23,6 +23,7 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -1094,6 +1095,8 @@ public class GitHubService {
 
     private LocalDateTime parseDate(String value) {
         if (value == null || value.isBlank()) return null;
-        return OffsetDateTime.parse(value).toLocalDateTime();
+        return OffsetDateTime.parse(value)
+                .atZoneSameInstant(ZoneId.systemDefault())
+                .toLocalDateTime();
     }
 }

@@ -176,6 +176,8 @@ Le bouton `Ouvrir AgileFlow` n'est affiche sur la landing que si l'utilisateur
 connecte possede deja au moins un projet. Les CTA `Creer un projet
 gratuitement`, `Commencer gratuitement` et `Connecter GitHub` ouvrent la
 creation de projet quand l'utilisateur est deja connecte.
+Les boutons `Voir une demo` ouvrent une video locale dans un panneau superpose
+depuis `frontend/public/Demo_AgileFlow.mp4`.
 
 Les pages `/login`, `/register` et le loading global reprennent le visuel de la
 landing : panneau sombre de marque, carte formulaire claire, OAuth Google/GitHub
@@ -208,7 +210,7 @@ Le selecteur de projet dans le header permet :
 - choisir le projet actif ;
 - creer un projet ;
 - definir le prefixe des taches du projet, par exemple `KAN`, `GRF` ou `PROJ` ;
-- modifier ou supprimer le projet via le menu ;
+- modifier ou archiver le projet via le menu ;
 - inviter un membre via le bouton membre place a cote du projet.
 
 ## Fonctionnalites principales
@@ -224,10 +226,11 @@ Le selecteur de projet dans le header permet :
 
 ### Projets et invitations
 
-- Creation, modification et suppression de projet.
-- La suppression d'un projet supprime aussi ses donnees liees : taches,
-  commentaires, diagrammes, sprints, epics, backlog, invitations, membres,
-  chat projet et integration GitHub.
+- Creation, modification et archivage de projet.
+- L'action de suppression utilisateur archive le projet : il disparait des
+  espaces utilisateur et n'est plus accessible, mais ses donnees sont conservees.
+- Seul l'admin plateforme peut desarchiver un projet depuis la page Admin
+  Projects.
 - Chaque projet possede un prefixe de taches configurable (`KAN` par defaut),
   utilise dans les cartes, details, branches, PRs et commits GitHub.
 - Le createur devient proprietaire (`OWNER`) du projet.
@@ -275,6 +278,9 @@ Fonctionnalites :
   synchronisation, PRs, branches et commits ;
 - creer une branche GitHub depuis une tache ;
 - creer une pull request GitHub depuis une tache ;
+- apres creation d'une branche ou PR depuis AgileFlow, le panneau de la tache
+  est mis a jour immediatement puis resynchronise en arriere-plan ;
+- les dates GitHub UTC sont converties en heure locale avant affichage relatif ;
 - afficher branches, PRs, checks et commits dans le panneau Developpement
   d'une tache ;
 - afficher issues, PRs et commits dans le detail d'une tache ;
