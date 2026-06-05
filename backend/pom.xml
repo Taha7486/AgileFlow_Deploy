@@ -65,10 +65,10 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- ── MySQL ── -->
+        <!-- ── PostgreSQL ── -->
         <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
 
@@ -78,7 +78,7 @@
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-mysql</artifactId>
+            <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
 
         <!-- ── LOMBOK ── -->
@@ -167,14 +167,14 @@
                 <version>10.10.0</version>
                 <dependencies>
                     <dependency>
-                        <groupId>com.mysql</groupId>
-                        <artifactId>mysql-connector-j</artifactId>
-                        <version>8.3.0</version>
+                        <groupId>org.postgresql</groupId>
+                        <artifactId>postgresql</artifactId>
+                        <version>42.7.4</version>
                     </dependency>
                 </dependencies>
                 <configuration>
-                    <url>jdbc:mysql://localhost:3306/agileflow_db</url>
-                    <user>root</user>
+                    <url>jdbc:postgresql://localhost:5432/agileflow_db</url>
+                    <user>postgres</user>
                     <password></password>
                 </configuration>
             </plugin>

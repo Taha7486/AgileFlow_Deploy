@@ -36,7 +36,7 @@ public class User {
     @Builder.Default
     private LocalDateTime dateCreation = LocalDateTime.now();
     @Lob
-    @Column(name = "avatar_url", columnDefinition = "LONGTEXT")
+    @Column(name = "avatar_url")
     private String avatarUrl;
 
     /** Dernière connexion réussie (login). */
