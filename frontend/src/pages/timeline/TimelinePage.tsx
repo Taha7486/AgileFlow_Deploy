@@ -12,7 +12,7 @@ import TimelineToolbar from './TimelineToolbar';
 import TimelineViewSelector from './TimelineViewSelector';
 
 const TICKET_PANEL_WIDTH = 490;
-const DETAIL_PANEL_WIDTH = 460;
+const DETAIL_PANEL_WIDTH = 620;
 
 const TimelinePage = () => {
   const { activeProject, isLoading: projectLoading } = useActiveProject();

@@ -33,6 +33,12 @@ public class WebSocketEventListener {
         String email = attributes != null ? (String) attributes.get("email") : null;
         String sessionId = headerAccessor.getSessionId();
         sessionRegistry.register(email, sessionId);
+        if (email != null) {
+            userRepository.findByEmail(email).ifPresent(user -> {
+                chatService.updatePresence(user.getId(), true, ChatPresence.VisibilityStatus.LIVE);
+                chatService.broadcastPresenceSnapshot(messagingTemplate);
+            });
+        }
     }
 
     @EventListener

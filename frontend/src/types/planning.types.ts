@@ -17,6 +17,7 @@ export interface UserSummary {
 
 export interface StorySummary { id: number; titre: string; priorite: string; }
 export interface ProjectSummary { id: number; nom: string; issuePrefix?: string; }
+export interface SprintSummary { id: number; nom: string; statut: string; }
 
 export interface PlanningTask {
   id: number;
@@ -32,6 +33,7 @@ export interface PlanningTask {
   labels: string[];
   assignee: UserSummary | null;
   reporter: UserSummary | null;
+  sprint: SprintSummary | null;
   userStory: StorySummary | null;
   project: ProjectSummary | null;
   commentCount: number;
@@ -110,7 +112,7 @@ export interface CreateSubtaskRequest {
 
 export const ALLOWED_CHILD_TYPES: Record<TypeTache, TypeTache[]> = {
   EPIC:    ['STORY', 'TASK', 'FEATURE', 'BUG'],
-  STORY:   ['TASK', 'BUG', 'FEATURE'],
+  STORY:   ['SUBTASK'],
   TASK:    ['SUBTASK'],
   FEATURE: ['SUBTASK'],
   BUG:     ['SUBTASK'],

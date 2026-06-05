@@ -86,6 +86,16 @@ const buildPullRequestTitle = (taskId: number, prefix?: string | null, taskTitre
   return trimmed.toUpperCase().startsWith(issueKey) ? trimmed : `${issueKey} ${trimmed}`;
 };
 
+const commitMentionsTask = (commit: GitHubCommit, taskId: number, prefix?: string | null) => {
+  if (commit.linkedTaskId === taskId || commit.mentionedTaskIds?.includes(taskId)) {
+    return true;
+  }
+  const normalizedPrefix = normalizeIssuePrefix(prefix);
+  const message = commit.message ?? '';
+  const escapedPrefix = normalizedPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|\\W)(?:${escapedPrefix}-${taskId}|#${taskId}|task/${taskId})(\\W|$)`, 'i').test(message);
+};
+
 const CommitRow = ({ commit, issuePrefix }: { commit: GitHubCommit; issuePrefix?: string | null }) => (
   <Box sx={{ py: 0.75, borderTop: '1px solid #F0F1F3' }}>
     <Stack direction="row" alignItems="center" spacing={1}>
@@ -184,9 +194,7 @@ const GitHubDevelopmentPanel = ({ taskId, compact = false }: Props) => {
       pr.linkedTaskId === taskId && list.findIndex((item) => item.number === pr.number) === index
     );
     const projectBranches = projectDevelopment.activeBranches.filter((branch) => branch.taskId === taskId);
-    const projectCommits = projectDevelopment.recentCommits.filter((commit) =>
-      commit.linkedTaskId === taskId || commit.mentionedTaskIds?.includes(taskId)
-    );
+    const projectCommits = projectDevelopment.recentCommits.filter((commit) => commitMentionsTask(commit, taskId, issuePrefix));
 
     if (!panel) {
       if (projectPullRequests.length === 0 && projectBranches.length === 0 && projectCommits.length === 0) {
@@ -213,7 +221,8 @@ const GitHubDevelopmentPanel = ({ taskId, compact = false }: Props) => {
 
     const branchNames = new Set(panel.branches.map((branch) => branch.name));
     const prNumbers = new Set(panel.pullRequests.map((pr) => pr.number));
-    const commitShas = new Set(panel.commits.map((commit) => commit.sha));
+    const panelCommits = panel.commits.filter((commit) => commitMentionsTask(commit, taskId, issuePrefix));
+    const commitShas = new Set(panelCommits.map((commit) => commit.sha));
 
     return {
       ...panel,
@@ -226,7 +235,7 @@ const GitHubDevelopmentPanel = ({ taskId, compact = false }: Props) => {
         ...projectPullRequests.filter((pr) => !prNumbers.has(pr.number)),
       ],
       commits: [
-        ...panel.commits,
+        ...panelCommits,
         ...projectCommits.filter((commit) => !commitShas.has(commit.sha)),
       ],
     };

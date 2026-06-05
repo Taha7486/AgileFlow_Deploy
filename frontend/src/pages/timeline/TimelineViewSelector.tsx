@@ -10,12 +10,17 @@ const VIEWS: { value: TimelineVue; label: string }[] = [
 ];
 
 const TimelineViewSelector = () => {
-  const { vue, setVue, scrollToToday } = useTimelineStore();
+  const { vue, setVue } = useTimelineStore();
+
   return (
     <Box sx={{ position: 'fixed', right: 24, bottom: 24, zIndex: 200, display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: '#F4F5F7', border: '1px solid #DFE1E6', borderRadius: 1.5, p: 0.5, boxShadow: '0 2px 8px rgba(9,30,66,0.15)' }}>
-      <Button size="small" onClick={scrollToToday}>Aujourd'hui</Button>
       {VIEWS.map((item) => (
-        <Button key={item.value} size="small" variant={vue === item.value ? 'contained' : 'text'} onClick={() => setVue(item.value)}>
+        <Button
+          key={item.value}
+          size="small"
+          variant={vue === item.value ? 'contained' : 'text'}
+          onClick={() => setVue(item.value)}
+        >
           {item.label}
         </Button>
       ))}

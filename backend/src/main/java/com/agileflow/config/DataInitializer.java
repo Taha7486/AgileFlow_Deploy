@@ -405,7 +405,7 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void seedDiagrams(Project project, User owner, User frontend, User backend, Task task, LocalDateTime now) {
-        Diagram flow = diagram("Onboarding utilisateur", "Parcours inscription -> projet -> invitation.", Diagram.Type.FLOWCHART, project, owner, task, now.minusDays(4));
+        Diagram flow = diagram("Onboarding utilisateur", "Parcours inscription -> projet -> invitation.", Diagram.Type.USE_CASE, project, owner, task, now.minusDays(4));
         Diagram sequence = diagram("Sequence collaboration DiagramFlow", "Evenements WebSocket entre deux editeurs.", Diagram.Type.SEQUENCE, project, frontend, task, now.minusDays(2));
         diagramRepository.saveAll(List.of(flow, sequence));
 

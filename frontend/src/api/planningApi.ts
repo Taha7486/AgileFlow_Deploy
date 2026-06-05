@@ -20,6 +20,11 @@ export const planningApi = {
     return data;
   },
 
+  getTaskDetail: async (taskId: number): Promise<PlanningTask> => {
+    const { data } = await api.get(`/tasks/${taskId}/planning-detail`);
+    return data;
+  },
+
   bulkAction: async (req: BulkActionRequest) => {
     const { data } = await api.put('/tasks/planning/bulk', req);
     return data;

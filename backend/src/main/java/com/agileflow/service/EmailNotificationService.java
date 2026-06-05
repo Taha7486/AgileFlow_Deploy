@@ -9,6 +9,7 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -26,7 +27,7 @@ public class EmailNotificationService {
     private final EmailPreferencesService emailPreferencesService;
     private final EmailTemplateService emailTemplateService;
     private final TeamMemberRepository teamMemberRepository;
-    @Value("${app.frontend.url:http://localhost:5173}")
+    @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
     @Value("${spring.mail.username}")
     private String fromEmail;
@@ -100,11 +101,12 @@ public class EmailNotificationService {
         }
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "UTF-8");
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
             helper.setFrom(fromName + " <" + fromEmail + ">");
             helper.setTo(recipientEmail);
             helper.setSubject(email.subject());
             helper.setText(email.html(), true);
+            helper.addInline("agileflowLogo", new ClassPathResource("static/agileflow-icon.png"), "image/png");
             mailSender.send(mimeMessage);
         } catch (Exception ex) {
             log.warn("Email direct non envoye a {}: {}", recipientEmail, ex.getMessage());
@@ -120,11 +122,12 @@ public class EmailNotificationService {
         }
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "UTF-8");
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
             helper.setFrom(fromName + " <" + fromEmail + ">");
             helper.setTo(user.getEmail());
             helper.setSubject(email.subject());
             helper.setText(email.html(), true);
+            helper.addInline("agileflowLogo", new ClassPathResource("static/agileflow-icon.png"), "image/png");
             mailSender.send(mimeMessage);
         } catch (Exception ex) {
             log.warn("Email {} non envoye a {}: {}", type, user.getEmail(), ex.getMessage());

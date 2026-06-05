@@ -366,11 +366,6 @@ public class TaskService {
             if (typeTache == null || typeTache == TypeTache.EPIC || typeTache == TypeTache.SUBTASK) {
                 typeTache = TypeTache.TASK;
             }
-        } else if (parent.getTypeTache() == TypeTache.STORY) {
-            typeTache = request.typeTache();
-            if (typeTache == null || typeTache == TypeTache.EPIC || typeTache == TypeTache.STORY || typeTache == TypeTache.SUBTASK) {
-                typeTache = TypeTache.TASK;
-            }
         } else {
             typeTache = TypeTache.SUBTASK;
         }

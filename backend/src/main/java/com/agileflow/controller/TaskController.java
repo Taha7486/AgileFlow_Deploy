@@ -124,6 +124,12 @@ public class TaskController {
         return ResponseEntity.ok(planningService.inlineEdit(id, request));
     }
 
+    @GetMapping("/{id}/planning-detail")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PlanningTaskDto> getPlanningTaskDetail(@PathVariable Long id) {
+        return ResponseEntity.ok(planningService.getPlanningTask(id));
+    }
+
     @PostMapping("/{parentId}/subtasks")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PlanningTaskDto> createSubtask(

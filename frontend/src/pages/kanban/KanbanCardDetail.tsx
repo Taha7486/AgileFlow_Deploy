@@ -62,6 +62,7 @@ const toPlanningTask = (task: KanbanTask): PlanningTask => ({
   labels: task.labels,
   assignee: task.assignee,
   reporter: task.reporter,
+  sprint: task.sprint,
   userStory: task.userStory,
   project: task.project,
   commentCount: task.commentCount,

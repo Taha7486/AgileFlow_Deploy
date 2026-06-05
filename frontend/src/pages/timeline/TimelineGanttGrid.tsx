@@ -14,20 +14,27 @@ const ROW_HEIGHT = 44;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const TimelineGanttGrid = ({ ganttBodyRef, onGanttScroll }: Props) => {
-  const { data, vue, expandedEpics } = useTimelineStore();
+  const { data, vue, expandedEpics, scrollToTodayRequest } = useTimelineStore();
   const [scrollLeft, setScrollLeft] = useState(0);
   const rows = useMemo(() => getVisibleRows(data, expandedEpics), [data, expandedEpics]);
   const width = data ? largeurGrille(data.periode.dateMin, data.periode.dateMax, vue) : 0;
 
   useEffect(() => {
-    const handler = () => {
-      if (!data || !ganttBodyRef.current) return;
+    if (!scrollToTodayRequest || !data || !ganttBodyRef.current || width <= 0) return undefined;
+
+    const frame = window.requestAnimationFrame(() => {
+      const element = ganttBodyRef.current;
+      if (!element) return;
       const todayX = dateToPixel(data.periode.dateAujourdhui, data.periode.dateMin, vue);
-      ganttBodyRef.current.scrollLeft = Math.max(0, todayX - ganttBodyRef.current.offsetWidth / 2);
-    };
-    window.addEventListener('timeline:scrollToToday', handler);
-    return () => window.removeEventListener('timeline:scrollToToday', handler);
-  }, [data, ganttBodyRef, vue]);
+      const maxScroll = Math.max(0, element.scrollWidth - element.clientWidth);
+      const nextScrollLeft = Math.min(maxScroll, Math.max(0, todayX - element.clientWidth / 2));
+      element.scrollLeft = nextScrollLeft;
+      setScrollLeft(nextScrollLeft);
+      onGanttScroll();
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [data, ganttBodyRef, onGanttScroll, scrollToTodayRequest, vue, width]);
 
   if (!data) return <Box sx={{ flex: 1 }} />;
 

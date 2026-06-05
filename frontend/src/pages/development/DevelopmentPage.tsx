@@ -4,9 +4,15 @@ import {
   Alert,
   Avatar,
   Box,
+  Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Grid,
+  IconButton,
   Link,
   List,
   ListItem,
@@ -88,7 +94,9 @@ const DevelopmentPage = () => {
   const [tab, setTab] = useState(0);
   const [branchSearch, setBranchSearch] = useState('');
   const [commitSearch, setCommitSearch] = useState('');
+  const [rulesOpen, setRulesOpen] = useState(false);
   const issuePrefix = projectDevelopment?.issuePrefix ?? activeProject?.issuePrefix;
+  const exampleKey = formatIssueKey(issuePrefix, 5);
 
   useEffect(() => {
     if (activeProject?.id) void fetchProjectDevelopment(activeProject.id);
@@ -149,6 +157,14 @@ const DevelopmentPage = () => {
     <Box>
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} sx={{ mb: 2 }}>
         <PageHeader icon={<GitHub />} title="Developpement" subtitle="Branches, pull requests et commits GitHub du projet" />
+        <Button
+          variant="outlined"
+          startIcon={<HelpOutline />}
+          onClick={() => setRulesOpen(true)}
+          sx={{ mt: { xs: 1, sm: 0 }, fontWeight: 800 }}
+        >
+          Regles GitHub
+        </Button>
       </Stack>
 
       {developmentError && <Alert severity="error" sx={{ mb: 2 }}>{developmentError}</Alert>}
@@ -284,6 +300,98 @@ const DevelopmentPage = () => {
           </Grid>
         </>
       )}
+
+      <Dialog open={rulesOpen} onClose={() => setRulesOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+          Regles branches, commits et pull requests
+          <IconButton onClick={() => setRulesOpen(false)} aria-label="Fermer">
+            <Cancel />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2.5}>
+            <Alert severity="info">
+              AgileFlow lie automatiquement GitHub aux taches quand le nom contient la cle de tache.
+              Exemples reconnus: <strong>{exampleKey}</strong>, <strong>#5</strong> ou <strong>task/5</strong>.
+            </Alert>
+
+            <Box>
+              <Typography fontWeight={900} sx={{ mb: 1 }}>Branches</Typography>
+              <Typography color="text.secondary" sx={{ mb: 1 }}>
+                Une branche creee depuis une tache est liee a cette tache. Si la tache est en `A faire`, elle passe en `En cours`.
+              </Typography>
+              <Stack spacing={0.75}>
+                {[
+                  `feature/${exampleKey}-chat-presence`,
+                  `fix/${exampleKey}-avatar-online-state`,
+                  `task/${exampleKey}-refresh-chat-panel`,
+                ].map((value) => (
+                  <Chip key={value} label={value} variant="outlined" sx={{ alignSelf: 'flex-start', fontFamily: 'monospace' }} />
+                ))}
+              </Stack>
+            </Box>
+
+            <Box>
+              <Typography fontWeight={900} sx={{ mb: 1 }}>Commits</Typography>
+              <Typography color="text.secondary" sx={{ mb: 1 }}>
+                Un commit apparait dans la tache seulement si son message mentionne cette tache.
+                Les mots `fixes`, `closes` ou `resolves` ferment automatiquement la tache.
+              </Typography>
+              <Stack spacing={0.75}>
+                {[
+                  `${exampleKey} stabilize online presence refresh`,
+                  `#5 show user avatars in direct messages`,
+                  `task/5 add refresh action in chat panel`,
+                  `fixes ${exampleKey} keep contact status stable`,
+                  `closes ${exampleKey} finish chat presence workflow`,
+                ].map((value) => (
+                  <Chip key={value} label={value} variant="outlined" sx={{ alignSelf: 'flex-start', fontFamily: 'monospace' }} />
+                ))}
+              </Stack>
+            </Box>
+
+            <Box>
+              <Typography fontWeight={900} sx={{ mb: 1 }}>Pull requests</Typography>
+              <Typography color="text.secondary" sx={{ mb: 1 }}>
+                Une PR dont le titre ou la description mentionne la tache est liee a cette tache.
+                A l'ouverture, la tache passe en `Review`; apres merge, elle passe en `Termine`.
+              </Typography>
+              <Stack spacing={0.75}>
+                {[
+                  `${exampleKey} Fix chat presence and avatars`,
+                  `Liee a la tache ${exampleKey}`,
+                  `PR #12 -> ${exampleKey} en REVIEW, puis DONE apres merge`,
+                ].map((value) => (
+                  <Chip key={value} label={value} variant="outlined" sx={{ alignSelf: 'flex-start', fontFamily: 'monospace' }} />
+                ))}
+              </Stack>
+            </Box>
+
+            <Box>
+              <Typography fontWeight={900} sx={{ mb: 1 }}>Transitions automatiques</Typography>
+              <Grid container spacing={1}>
+                {[
+                  ['Branche creee', 'A faire -> En cours'],
+                  ['PR ouverte', 'En cours -> Review'],
+                  ['PR mergee', 'Review -> Termine'],
+                  ['PR fermee sans merge', 'Review -> En cours'],
+                  [`Commit fixes ${exampleKey}`, 'Tache -> Termine'],
+                ].map(([event, result]) => (
+                  <Grid item xs={12} sm={6} key={event}>
+                    <Paper elevation={0} sx={{ p: 1.25, border: '1px solid #DFE1E6', borderRadius: 1.5 }}>
+                      <Typography fontWeight={800}>{event}</Typography>
+                      <Typography color="text.secondary" fontSize={13}>{result}</Typography>
+                    </Paper>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRulesOpen(false)} variant="contained">Compris</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

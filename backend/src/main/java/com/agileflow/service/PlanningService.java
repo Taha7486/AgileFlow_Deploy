@@ -181,6 +181,17 @@ public class PlanningService {
         return toPlanningTaskDto(taskRepository.save(task));
     }
 
+    @Transactional(readOnly = true)
+    public PlanningTaskDto getPlanningTask(Long id) {
+        Task task = getTask(id);
+        User actor = projectAccessService.currentUser();
+        Project project = resolveProject(task);
+        if (project != null) {
+            projectAccessService.assertProjectAccess(actor, project);
+        }
+        return toPlanningTaskDto(task);
+    }
+
     @Transactional
     public BulkActionResponse bulkAction(BulkActionRequest request) {
         if (request == null || request.taskIds() == null || request.taskIds().isEmpty()) {
@@ -575,15 +586,15 @@ public class PlanningService {
     }
 
     public PlanningTaskDto toPlanningTaskDto(Task task) {
-        return toPlanningTaskDto(task, true);
+        return toPlanningTaskDto(task, 0);
     }
 
-    private PlanningTaskDto toPlanningTaskDto(Task task, boolean includeChildren) {
+    private PlanningTaskDto toPlanningTaskDto(Task task, int depth) {
         UserStory story = task.getStory();
         Project project = resolveProject(task);
 
-        List<PlanningTaskDto> sousTaskes = (includeChildren && task.getSousTaskes() != null)
-                ? task.getSousTaskes().stream().map(t -> toPlanningTaskDto(t, false)).toList()
+        List<PlanningTaskDto> sousTaskes = (depth < 8 && task.getSousTaskes() != null)
+                ? task.getSousTaskes().stream().map(t -> toPlanningTaskDto(t, depth + 1)).toList()
                 : List.of();
 
         long doneCount = task.getSousTaskes() != null

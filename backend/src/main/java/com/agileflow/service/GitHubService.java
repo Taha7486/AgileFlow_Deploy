@@ -763,8 +763,9 @@ public class GitHubService {
 
     private List<Long> extractTaskIds(String value) {
         if (value == null) return List.of();
+        String normalized = MERGE_PR_PATTERN.matcher(value).replaceAll("Merge pull request");
         List<Long> ids = new ArrayList<>();
-        Matcher matcher = TASK_REF_PATTERN.matcher(value);
+        Matcher matcher = TASK_REF_PATTERN.matcher(normalized);
         while (matcher.find()) {
             ids.add(Long.parseLong(matcher.group(1)));
         }

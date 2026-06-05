@@ -17,6 +17,7 @@ interface TimelineState {
   vue: TimelineVue;
   expandedEpics: Set<number>;
   selectedTaskId: number | null;
+  scrollToTodayRequest: number;
   isLoading: boolean;
   error: string | null;
   loadTimeline: () => Promise<void>;
@@ -39,6 +40,7 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
   vue: 'MOIS',
   expandedEpics: new Set(),
   selectedTaskId: null,
+  scrollToTodayRequest: 0,
   isLoading: false,
   error: null,
 
@@ -110,7 +112,7 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
     }
   },
 
-  scrollToToday: () => window.dispatchEvent(new CustomEvent('timeline:scrollToToday')),
+  scrollToToday: () => set((state) => ({ scrollToTodayRequest: state.scrollToTodayRequest + 1 })),
 
   createEpic: async (payload) => {
     try {
