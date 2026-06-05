@@ -35,15 +35,15 @@ public class Diagram {
     private Type type;
 
     @Lob
-    @Column(name = "etapes_json", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "etapes_json", nullable = false)
     private String etapesJson;
 
     @Lob
-    @Column(name = "contenu_json", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "contenu_json", nullable = false)
     private String json;
 
     @Lob
-    @Column(name = "canvas_data", columnDefinition = "LONGTEXT")
+    @Column(name = "canvas_data")
     private String canvasData;
 
     @Builder.Default

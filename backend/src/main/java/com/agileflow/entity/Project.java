@@ -21,7 +21,7 @@ public class Project {
     private String issuePrefix = "KAN";
     private String description;
     @Lob
-    @Column(name = "icon_url", columnDefinition = "LONGTEXT")
+    @Column(name = "icon_url")
     private String iconUrl;
     private LocalDate dateDebut;
     private LocalDate dateFin;
